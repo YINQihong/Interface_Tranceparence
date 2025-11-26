@@ -1,405 +1,550 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 import numpy as np
 
-# 页面配置
-st.set_page_config(
-    page_title="ELECTRE TRI - Analyse Nutri-Score",
-    page_icon="🥖",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+st.set_page_config(page_title="SuperNutri-Score", page_icon="🥖", layout="wide")
 
-# 自定义CSS样式
-st.markdown("""
-<style>
-    .main-header {
-        font-size: 2.5rem;
-        font-weight: bold;
-        color: #1f77b4;
-        text-align: center;
-        margin-bottom: 2rem;
-    }
-</style>
-""", unsafe_allow_html=True)
+st.markdown('<h1 style="text-align:center;color:#1f77b4;">🥖 SuperNutri-Score - Interface Consommateur</h1>', 
+            unsafe_allow_html=True)
 
-# 标题
-st.markdown('<h1 class="main-header">🥖 Analyse ELECTRE TRI - Classification des Produits Alimentaires</h1>', unsafe_allow_html=True)
-
-st.markdown("""
-<div style='text-align: center; margin-bottom: 2rem;'>
-    <p style='font-size: 1.2rem;'>
-    Application interactive présentant les résultats de la méthode <strong>ELECTRE TRI</strong> 
-    pour la classification des produits alimentaires.
-    </p>
-</div>
-""", unsafe_allow_html=True)
-
-# 数据加载
+# Chargement données
 @st.cache_data
 def load_data():
     try:
-        df_results = pd.read_excel("ELECTRE_TRI_Resultats.xlsx")
-        df_products = pd.read_csv("Products.csv", encoding='utf-8')
-        return df_results, df_products, True
+        pain = pd.read_csv("Products.csv", encoding='utf-8-sig')
+        yaourt = pd.read_csv("data_yaourt.csv", encoding='utf-8-sig')
+        return pain, yaourt, True
     except:
-        return create_sample_data(), None, False
+        pain = pd.DataFrame({'product_name': [f'Pain {i}' for i in range(121)],
+                            'nutriscore_grade': np.random.choice(['A','B','C','D','E'], 121),
+                            'ecoscore_grade': np.random.choice(['A','B','C','D','E'], 121)})
+        yaourt = pd.DataFrame({'product_name': [f'Yaourt {i}' for i in range(208)],
+                              'nutriscore_grade': np.random.choice(['A','B','C','D','E'], 208),
+                              'ecoscore_grade': np.random.choice(['A','B','C','D','E'], 208)})
+        return pain, yaourt, False
 
-def create_sample_data():
-    np.random.seed(42)
-    n = 139
-    
-    products = ['Pain complet', 'Baguette', 'Pain de mie', 'Brioche', 'Croissant', 
-                'Pain aux céréales', 'Pain blanc', 'Pain azyme', 'Ciabatta', 'Pain pita']
-    
-    names = [f"{np.random.choice(products)} {np.random.choice(['bio', 'classique', 'artisanal', ''])} {i+1}".strip() 
-             for i in range(n)]
-    
-    nutri = []
-    pess06 = []
-    opt06 = []
-    pess07 = []
-    opt07 = []
-    
-    for i in range(n):
-        ng = np.random.choice(['A', 'B', 'C', 'D', 'E'], p=[0.2, 0.25, 0.25, 0.2, 0.1])
-        nutri.append(ng)
-        
-        idx = {'A': 0, 'B': 1, 'C': 2, 'D': 3, 'E': 4}[ng]
-        classes = ['A\'', 'B\'', 'C\'', 'D\'', 'E\'']
-        
-        pess06.append(classes[min(idx + np.random.choice([0,1,2], p=[0.5,0.3,0.2]), 4)])
-        opt06.append(classes[max(0, min(idx + np.random.choice([-1,0,1], p=[0.2,0.5,0.3]), 4))])
-        pess07.append(classes[min(idx + np.random.choice([0,1,2,3], p=[0.3,0.35,0.25,0.1]), 4)])
-        opt07.append(classes[max(0, min(idx + np.random.choice([-1,0,1], p=[0.25,0.45,0.3]), 4))])
-    
-    return pd.DataFrame({
-        'product_id': range(1, n+1),
-        'product_name': names,
-        'nutriscore_grade': nutri,
-        'Classe_Pessimiste_λ=0.6': pess06,
-        'Classe_Optimiste_λ=0.6': opt06,
-        'Classe_Pessimiste_λ=0.7': pess07,
-        'Classe_Optimiste_λ=0.7': opt07,
-    })
-
-df_results, df_products, is_real = load_data()
+df_pain, df_yaourt, is_real = load_data()
 
 if not is_real:
-    st.warning("⚠️ Données d'exemple utilisées. Ajoutez vos fichiers pour voir vos vraies données.")
-else:
-    st.success("✅ Données réelles chargées!")
+    st.warning("⚠️ Données d'exemple. Ajoutez Products.csv et data_yaourt.csv pour les vraies données.")
 
-# Sidebar
+# Sidebar Navigation
 st.sidebar.title("📊 Navigation")
-page = st.sidebar.radio(
-    "",
-    ["🏠 Vue d'ensemble", 
-     "🎯 Résultats ELECTRE TRI", 
-     "🔄 Comparaison Nutri-Score", 
-     "🔍 Analyse détaillée",
-     "📈 Visualisations avancées"]
-)
+page = st.sidebar.radio("", [
+    "🧮 Calculateur Complet",
+    "📊 Analyse de Données", 
+    "⚖️ Comparaison Groupes"
+])
 
-st.sidebar.markdown("---")
-st.sidebar.info("""
-**ELECTRE TRI**
+COLORS = {'A':'#038141','B':'#85BB2F','C':'#FECB02','D':'#EE8100','E':'#E63E11'}
 
-Méthode multicritère de classification.
-
-**8 Critères:**
-- Énergie, Graisses, Sucres
-- Sodium, Protéines, Fibres
-- Fruits/Légumes, Additifs
-""")
-
-# Couleurs
-COLORS = {
-    'A': '#038141', 'B': '#85BB2F', 'C': '#FECB02', 'D': '#EE8100', 'E': '#E63E11',
-    'A\'': '#038141', 'B\'': '#85BB2F', 'C\'': '#FECB02', 'D\'': '#EE8100', 'E\'': '#E63E11'
-}
-
-# PAGE 1: Vue d'ensemble
-if page == "🏠 Vue d'ensemble":
-    col1, col2, col3, col4 = st.columns(4)
+# ============================================================
+# PAGE 1: CALCULATEUR COMPLET (Requis par professeur)
+# ============================================================
+if page == "🧮 Calculateur Complet":
+    st.header("🧮 Interface Consommateur - Évaluation Complète")
     
-    with col1:
-        st.metric("📦 Produits", len(df_results))
-    with col2:
-        st.metric("📊 Critères", 8)
-    with col3:
-        st.metric("🎚️ Valeurs λ", 2)
-    with col4:
-        mapping = {'A':'A\'','B':'B\'','C':'C\'','D':'D\'','E':'E\''}
-        match = sum(df_results.apply(lambda r: r['nutriscore_grade'] in mapping and 
-                    r['Classe_Pessimiste_λ=0.6'] == mapping[r['nutriscore_grade']], axis=1))
-        st.metric("✅ Concordance", f"{(match/len(df_results)*100):.1f}%")
+    st.info("""
+    **Entrez les informations nutritionnelles de votre produit et obtenez:**
+    - ✅ Nutri-Score (score + grade)
+    - ✅ ELECTRE TRI Pessimiste & Optimiste
+    - ✅ SuperNutri-Score (modèle amélioré)
+    """)
     
+    # ========== SECTION 1: INFORMATIONS NUTRITIONNELLES ==========
     st.markdown("---")
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.subheader("📊 Nutri-Score")
-        nutri = df_results['nutriscore_grade'].value_counts().sort_index()
-        fig = go.Figure(go.Bar(x=nutri.index, y=nutri.values,
-                               marker_color=[COLORS[x] for x in nutri.index],
-                               text=nutri.values, textposition='outside'))
-        fig.update_layout(showlegend=False, height=350, xaxis_title="Grade", yaxis_title="Nombre")
-        st.plotly_chart(fig, use_container_width=True)
-    
-    with col2:
-        st.subheader("🎯 ELECTRE TRI (λ=0.6)")
-        electre = df_results['Classe_Pessimiste_λ=0.6'].value_counts().sort_index()
-        fig = go.Figure(go.Bar(x=electre.index, y=electre.values,
-                               marker_color=[COLORS[x] for x in electre.index],
-                               text=electre.values, textposition='outside'))
-        fig.update_layout(showlegend=False, height=350, xaxis_title="Classe", yaxis_title="Nombre")
-        st.plotly_chart(fig, use_container_width=True)
-    
-    st.markdown("---")
-    st.subheader("📋 Aperçu des données")
-    
-    col1, col2 = st.columns([2,1])
-    with col1:
-        search = st.text_input("🔍 Rechercher:", "")
-    with col2:
-        nutri_f = st.multiselect("Filtrer Nutri-Score:", 
-                                 sorted(df_results['nutriscore_grade'].unique()), [])
-    
-    disp = df_results.copy()
-    if search:
-        disp = disp[disp['product_name'].str.contains(search, case=False, na=False)]
-    if nutri_f:
-        disp = disp[disp['nutriscore_grade'].isin(nutri_f)]
-    
-    st.dataframe(disp[['product_name', 'nutriscore_grade', 'Classe_Pessimiste_λ=0.6', 
-                       'Classe_Optimiste_λ=0.6']], use_container_width=True, hide_index=True)
-
-# PAGE 2: Résultats ELECTRE
-elif page == "🎯 Résultats ELECTRE TRI":
-    st.header("🎯 Résultats ELECTRE TRI")
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        lam = st.selectbox("🎚️ Seuil λ:", ["0.6", "0.7"])
-    with col2:
-        proc = st.selectbox("📐 Procédure:", ["Pessimiste", "Optimiste"])
-    
-    col_name = f"Classe_{proc}_λ={lam}"
-    
-    st.markdown("---")
-    st.subheader(f"📊 Distribution - {proc} (λ={lam})")
-    
-    counts = df_results[col_name].value_counts().sort_index()
-    
-    col1, col2 = st.columns([2,1])
-    
-    with col1:
-        fig = go.Figure(go.Bar(x=counts.index, y=counts.values,
-                               marker_color=[COLORS[x] for x in counts.index],
-                               text=counts.values, textposition='outside'))
-        fig.update_layout(showlegend=False, height=400, 
-                         xaxis_title="Classe", yaxis_title="Nombre")
-        st.plotly_chart(fig, use_container_width=True)
-    
-    with col2:
-        st.markdown("### 📈 Stats")
-        for c in sorted(counts.index):
-            st.metric(f"Classe {c}", f"{counts[c]}", f"{counts[c]/len(df_results)*100:.1f}%")
-    
-    st.markdown("---")
-    st.subheader("📋 Liste des produits")
-    
-    classes = st.multiselect("Filtrer:", sorted(df_results[col_name].unique()),
-                            sorted(df_results[col_name].unique()))
-    
-    filtered = df_results[df_results[col_name].isin(classes)]
-    st.dataframe(filtered[['product_name', 'nutriscore_grade', col_name]],
-                use_container_width=True, hide_index=True, height=400)
-    
-    csv = filtered.to_csv(index=False).encode('utf-8')
-    st.download_button("📥 Télécharger CSV", csv, 
-                      f"electre_{proc}_lambda{lam}.csv", "text/csv")
-
-# PAGE 3: Comparaison
-elif page == "🔄 Comparaison Nutri-Score":
-    st.header("🔄 Comparaison vs Nutri-Score")
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        lam = st.selectbox("λ:", ["0.6", "0.7"])
-    with col2:
-        proc = st.selectbox("Procédure:", ["Pessimiste", "Optimiste"])
-    
-    col_name = f"Classe_{proc}_λ={lam}"
-    
-    st.markdown("---")
-    st.subheader("📊 Matrice de confusion")
-    
-    conf = pd.crosstab(df_results['nutriscore_grade'], df_results[col_name], 
-                       margins=True, margins_name="Total")
-    
-    fig = go.Figure(go.Heatmap(
-        z=conf.iloc[:-1, :-1].values,
-        x=conf.columns[:-1], y=conf.index[:-1],
-        colorscale='Blues', text=conf.iloc[:-1, :-1].values, texttemplate='%{text}'))
-    fig.update_layout(xaxis_title="ELECTRE TRI", yaxis_title="Nutri-Score", height=500)
-    st.plotly_chart(fig, use_container_width=True)
-    
-    with st.expander("📋 Matrice complète"):
-        st.dataframe(conf)
-    
-    st.markdown("---")
-    st.subheader("✅ Concordance")
-    
-    mapping = {'A':'A\'','B':'B\'','C':'C\'','D':'D\'','E':'E\''}
-    df_results['match'] = df_results.apply(
-        lambda r: r['nutriscore_grade'] in mapping and r[col_name] == mapping[r['nutriscore_grade']], 
-        axis=1)
-    
-    conc_rate = (df_results['match'].sum() / len(df_results)) * 100
-    matches = df_results['match'].sum()
+    st.subheader("📝 1. Informations Nutritionnelles (pour 100g)")
     
     col1, col2, col3 = st.columns(3)
+    
     with col1:
-        st.metric("Taux global", f"{conc_rate:.1f}%")
+        st.markdown("#### Énergie")
+        energy_kj = st.number_input("Énergie (kJ)", 0, 4000, 1000, 
+                                    help="Valeur énergétique en kilojoules")
+    
     with col2:
-        st.metric("Concordants", f"{matches}/{len(df_results)}")
+        st.markdown("#### Graisses")
+        saturated_fat = st.number_input("Graisses saturées (g)", 0.0, 100.0, 1.0, 0.1)
+    
     with col3:
-        st.metric("Discordants", len(df_results) - matches)
+        st.markdown("#### Sucres")
+        sugar = st.number_input("Sucres (g)", 0.0, 100.0, 5.0, 0.1)
     
-    st.markdown("### 📊 Par grade")
+    col1, col2, col3 = st.columns(3)
     
-    conc_data = []
-    for g in ['A','B','C','D','E']:
-        gdf = df_results[df_results['nutriscore_grade'] == g]
-        if len(gdf) > 0:
-            gm = gdf['match'].sum()
-            conc_data.append({'Grade': g, 'Concordants': gm, 'Total': len(gdf), 
-                             'Pct': gm/len(gdf)*100})
+    with col1:
+        sodium_mg = st.number_input("Sodium (mg)", 0, 5000, 100)
     
-    cdf = pd.DataFrame(conc_data)
+    with col2:
+        protein = st.number_input("Protéines (g)", 0.0, 100.0, 5.0, 0.1)
     
-    fig = go.Figure(go.Bar(x=cdf['Grade'], y=cdf['Pct'],
-                           marker_color=[COLORS[x] for x in cdf['Grade']],
-                           text=cdf['Pct'].round(1), texttemplate='%{text}%'))
-    fig.update_layout(showlegend=False, yaxis_title="Taux (%)", height=400)
-    st.plotly_chart(fig, use_container_width=True)
-    
-    st.dataframe(cdf, use_container_width=True, hide_index=True)
-
-# PAGE 4: Analyse détaillée
-elif page == "🔍 Analyse détaillée":
-    st.header("🔍 Analyse détaillée")
-    
-    st.subheader("🔎 Recherche")
-    search = st.text_input("Nom du produit:")
-    
-    if search:
-        found = df_results[df_results['product_name'].str.contains(search, case=False, na=False)]
-        if len(found) > 0:
-            st.success(f"✅ {len(found)} produit(s) trouvé(s)")
-            for _, row in found.iterrows():
-                with st.expander(f"📦 {row['product_name']}", expanded=True):
-                    col1, col2, col3 = st.columns(3)
-                    with col1:
-                        st.markdown("**Nutri-Score**")
-                        st.markdown(f"<h2 style='text-align:center; color:{COLORS[row['nutriscore_grade']]}'>{row['nutriscore_grade']}</h2>", 
-                                   unsafe_allow_html=True)
-                    with col2:
-                        st.markdown("**λ=0.6**")
-                        st.write(f"Pess: {row['Classe_Pessimiste_λ=0.6']}")
-                        st.write(f"Opt: {row['Classe_Optimiste_λ=0.6']}")
-                    with col3:
-                        st.markdown("**λ=0.7**")
-                        st.write(f"Pess: {row['Classe_Pessimiste_λ=0.7']}")
-                        st.write(f"Opt: {row['Classe_Optimiste_λ=0.7']}")
-        else:
-            st.warning("Aucun produit trouvé")
-    
-    st.markdown("---")
-    st.subheader("⚖️ Pessimiste vs Optimiste")
-    
-    lam = st.radio("λ:", ["0.6", "0.7"], horizontal=True)
-    cp = f"Classe_Pessimiste_λ={lam}"
-    co = f"Classe_Optimiste_λ={lam}"
-    
-    df_results['diff'] = df_results[cp] != df_results[co]
-    ndiff = df_results['diff'].sum()
+    with col3:
+        fiber = st.number_input("Fibres (g)", 0.0, 50.0, 2.0, 0.1)
     
     col1, col2 = st.columns(2)
+    
     with col1:
-        st.metric("Identiques", len(df_results)-ndiff, f"{((len(df_results)-ndiff)/len(df_results)*100):.1f}%")
+        fruits_veg_nuts_pct = st.slider("Fruits/Légumes/Noix (%)", 0, 100, 0)
+    
     with col2:
-        st.metric("Différentes", ndiff, f"{(ndiff/len(df_results)*100):.1f}%")
+        additives_count = st.number_input("Nombre d'additifs", 0, 20, 0)
     
-    if ndiff > 0:
-        ddf = df_results[df_results['diff']]
-        st.dataframe(ddf[['product_name', 'nutriscore_grade', cp, co]],
-                    use_container_width=True, hide_index=True)
-
-# PAGE 5: Visualisations avancées
-elif page == "📈 Visualisations avancées":
-    st.header("📈 Visualisations avancées")
-    
-    st.subheader("🌊 Diagramme de Sankey")
-    
-    lam = st.selectbox("λ:", ["0.6", "0.7"])
-    col = f"Classe_Pessimiste_λ={lam}"
-    
-    flow = df_results.groupby(['nutriscore_grade', col]).size().reset_index(name='count')
-    
-    nutri_g = sorted(df_results['nutriscore_grade'].unique())
-    elec_g = sorted(df_results[col].unique())
-    labels = nutri_g + elec_g
-    node_colors = [COLORS[g] for g in nutri_g] + [COLORS[c] for c in elec_g]
-    
-    src, tgt, val = [], [], []
-    for _, row in flow.iterrows():
-        src.append(labels.index(row['nutriscore_grade']))
-        tgt.append(labels.index(row[col]))
-        val.append(row['count'])
-    
-    fig = go.Figure(go.Sankey(
-        node=dict(pad=15, thickness=20, label=labels, color=node_colors),
-        link=dict(source=src, target=tgt, value=val)))
-    
-    fig.update_layout(title=f"Nutri-Score → ELECTRE (λ={lam})", height=600)
-    st.plotly_chart(fig, use_container_width=True)
-    
+    # ========== SECTION 2: ECO-SCORE ET BIO ==========
     st.markdown("---")
-    st.subheader("📊 Taux de concordance")
+    st.subheader("🌱 2. Informations Environnementales")
     
-    trends = []
-    for p in ['Pessimiste', 'Optimiste']:
-        for l in ['0.6', '0.7']:
-            c = f"Classe_{p}_λ={l}"
-            mapping = {'A':'A\'','B':'B\'','C':'C\'','D':'D\'','E':'E\''}
-            m = df_results.apply(lambda r: r['nutriscore_grade'] in mapping and 
-                                r[c] == mapping[r['nutriscore_grade']], axis=1).sum()
-            trends.append({'Proc': p, 'Lambda': l, 'Conc': m/len(df_results)*100})
+    col1, col2 = st.columns(2)
     
-    tdf = pd.DataFrame(trends)
+    with col1:
+        ecoscore_grade = st.selectbox("Eco-Score (Green-Score)", 
+                                     ['A', 'B', 'C', 'D', 'E'],
+                                     help="Impact environnemental du produit")
     
-    fig = go.Figure()
-    for p in ['Pessimiste', 'Optimiste']:
-        pdata = tdf[tdf['Proc'] == p]
-        fig.add_trace(go.Bar(name=p, x=pdata['Lambda'], y=pdata['Conc'],
-                            text=pdata['Conc'].round(1), texttemplate='%{text}%'))
+    with col2:
+        is_organic = st.checkbox("Produit biologique (Bio)", 
+                                 help="Produit issu de l'agriculture biologique")
     
-    fig.update_layout(barmode='group', yaxis_title="Concordance (%)",
-                     xaxis_title="λ", height=400)
-    st.plotly_chart(fig, use_container_width=True)
+    # ========== SECTION 3: PARAMÈTRES ELECTRE TRI ==========
+    st.markdown("---")
+    st.subheader("⚙️ 3. Paramètres ELECTRE TRI (Modifiable)")
+    
+    with st.expander("🔧 Configuration avancée ELECTRE TRI", expanded=False):
+        st.markdown("#### Poids des critères")
+        
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            w_energy = st.number_input("Poids Énergie", 1, 5, 2)
+            w_sat_fat = st.number_input("Poids Graisses sat.", 1, 5, 2)
+        
+        with col2:
+            w_sugar = st.number_input("Poids Sucres", 1, 5, 2)
+            w_sodium = st.number_input("Poids Sodium", 1, 5, 1)
+        
+        with col3:
+            w_protein = st.number_input("Poids Protéines", 1, 5, 1)
+            w_fiber = st.number_input("Poids Fibres", 1, 5, 1)
+        
+        with col4:
+            w_fruits = st.number_input("Poids Fruits/Lég.", 1, 5, 1)
+            w_additives = st.number_input("Poids Additifs", 1, 5, 1)
+        
+        st.markdown("#### Seuil de concordance (λ)")
+        lambda_threshold = st.slider("Seuil λ", 0.5, 1.0, 0.6, 0.05,
+                                     help="Seuil de majorité pour la classification")
+        
+        st.markdown("#### Profils limites (quantiles)")
+        st.info("Les profils sont calculés automatiquement à partir des quantiles des données.")
+    
+    # ========== BOUTON CALCUL ==========
+    st.markdown("---")
+    
+    if st.button("🚀 CALCULER LES 3 ALGORITHMES", type="primary", use_container_width=True):
+        
+        # Conversion sodium → sel
+        sodium_g = sodium_mg / 1000
+        sel_g = sodium_mg / 400
+        
+        # ==========================================
+        # ALGORITHME 1: NUTRI-SCORE 2025
+        # ==========================================
+        st.markdown("---")
+        st.header("📊 RÉSULTATS")
+        
+        st.subheader("1️⃣ Nutri-Score 2025 (ANSES)")
+        
+        # Calcul points négatifs
+        def score_energie(kj):
+            seuils = [335,670,1005,1340,1675,2010,2345,2680,3015,3350]
+            return int(np.searchsorted(seuils, kj, side="right"))
+        
+        def score_satures(g):
+            seuils = [1,2,3,4,5,6,7,8,9,10]
+            return int(np.searchsorted(seuils, g, side="right"))
+        
+        def score_sucres(g):
+            seuils = [3.4,6.8,10,14,17,20,24,27,31,34,37,41,44,48,51]
+            return int(np.searchsorted(seuils, g, side="right"))
+        
+        def score_sel(g):
+            seuils = [0.2,0.4,0.6,0.8,1.0,1.2,1.4,1.6,1.8,2.0,2.2,2.4,2.6,2.8,3.0,3.2,3.4,3.6,3.8,4.0]
+            return int(np.searchsorted(seuils, g, side="right"))
+        
+        pts_energie = score_energie(energy_kj)
+        pts_sat_fat = score_satures(saturated_fat)
+        pts_sugar = score_sucres(sugar)
+        pts_sel = score_sel(sel_g)
+        
+        negative_pts = pts_energie + pts_sat_fat + pts_sugar + pts_sel
+        
+        # Calcul points positifs
+        if fruits_veg_nuts_pct > 80:
+            pts_fruits = 5
+        elif fruits_veg_nuts_pct > 60:
+            pts_fruits = 2
+        elif fruits_veg_nuts_pct > 40:
+            pts_fruits = 1
+        else:
+            pts_fruits = 0
+        
+        pts_fiber = int(np.searchsorted([0.9,1.9,2.8,3.7,4.7], fiber, side="right"))
+        pts_protein = int(np.searchsorted([1.6,3.2,4.8,6.4,8.0], protein, side="right"))
+        
+        positive_pts = pts_fruits + pts_fiber + pts_protein
+        
+        # Règle 2025
+        if negative_pts >= 11 and fruits_veg_nuts_pct < 80:
+            positive_pts_final = positive_pts - pts_protein
+        else:
+            positive_pts_final = positive_pts
+        
+        nutriscore_score = negative_pts - positive_pts_final
+        
+        # Grade Nutri-Score
+        if nutriscore_score <= -1:
+            nutriscore_grade = "A"
+        elif nutriscore_score <= 2:
+            nutriscore_grade = "B"
+        elif nutriscore_score <= 10:
+            nutriscore_grade = "C"
+        elif nutriscore_score <= 18:
+            nutriscore_grade = "D"
+        else:
+            nutriscore_grade = "E"
+        
+        # Affichage Nutri-Score
+        col1, col2, col3 = st.columns([1,2,1])
+        
+        with col2:
+            st.markdown(f"""
+            <div style='text-align:center; padding:2rem; background-color:{COLORS[nutriscore_grade]}22; border-radius:10px;'>
+                <h1 style='color:{COLORS[nutriscore_grade]}; font-size:6rem; margin:0;'>{nutriscore_grade}</h1>
+                <h3 style='color:#666;'>Score: {nutriscore_score}</h3>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            st.metric("❌ Points négatifs", negative_pts)
+            st.caption(f"• Énergie: {pts_energie} pts")
+            st.caption(f"• Graisses sat.: {pts_sat_fat} pts")
+            st.caption(f"• Sucres: {pts_sugar} pts")
+            st.caption(f"• Sel: {pts_sel} pts")
+        
+        with col2:
+            st.metric("✅ Points positifs", positive_pts_final)
+            st.caption(f"• Fruits/Légumes: {pts_fruits} pts")
+            st.caption(f"• Fibres: {pts_fiber} pts")
+            st.caption(f"• Protéines: {pts_protein if positive_pts_final == positive_pts else 0} pts")
+            if negative_pts >= 11 and fruits_veg_nuts_pct < 80:
+                st.warning("⚠️ Protéines non comptées (règle 2025)")
+        
+        with col3:
+            st.metric("📊 Score final", nutriscore_score)
+            st.caption("Négatifs - Positifs")
+        
+        # ==========================================
+        # ALGORITHME 2: ELECTRE TRI
+        # ==========================================
+        st.markdown("---")
+        st.subheader("2️⃣ ELECTRE TRI (Pessimiste & Optimiste)")
+        
+        # Création du vecteur produit
+        produit = {
+            'energy_kj': energy_kj,
+            'saturated_fat': saturated_fat,
+            'sugar': sugar,
+            'sodium_g': sodium_g,
+            'protein': protein,
+            'fiber': fiber,
+            'fruits_veg_nuts_pct': fruits_veg_nuts_pct,
+            'additives_count': additives_count
+        }
+        
+        # Poids
+        poids = {
+            'energy_kj': w_energy,
+            'saturated_fat': w_sat_fat,
+            'sugar': w_sugar,
+            'sodium_g': w_sodium,
+            'protein': w_protein,
+            'fiber': w_fiber,
+            'fruits_veg_nuts_pct': w_fruits,
+            'additives_count': w_additives
+        }
+        
+        # Sens d'optimisation
+        sens = {
+            'energy_kj': 'min',
+            'saturated_fat': 'min',
+            'sugar': 'min',
+            'sodium_g': 'min',
+            'protein': 'max',
+            'fiber': 'max',
+            'fruits_veg_nuts_pct': 'max',
+            'additives_count': 'min'
+        }
+        
+        # Calcul des profils (quantiles)
+        criteres = list(poids.keys())
+        quantiles = [0.05, 0.2, 0.4, 0.6, 0.8, 0.95]
+        
+        profils = {}
+        for i, q in enumerate(quantiles, start=1):
+            profils[f"pi{i}"] = {}
+            for crit in criteres:
+                if crit in df_pain.columns:
+                    data = pd.concat([df_pain[crit], df_yaourt[crit]]).dropna()
+                    if sens[crit] == 'max':
+                        profils[f"pi{i}"][crit] = float(data.quantile(q))
+                    else:
+                        profils[f"pi{i}"][crit] = float(data.quantile(1-q))
+                else:
+                    # Valeurs par défaut
+                    defaults = {
+                        'energy_kj': [2000, 1500, 1200, 1100, 1050, 1000],
+                        'saturated_fat': [10, 5, 2, 1, 0.5, 0.3],
+                        'sugar': [18, 8, 4, 3, 2.5, 2],
+                        'sodium_g': [1.0, 0.7, 0.5, 0.4, 0.4, 0.35],
+                        'protein': [7, 8, 9, 10, 11, 12],
+                        'fiber': [0, 2.5, 4, 5.5, 8.5, 9.5],
+                        'fruits_veg_nuts_pct': [0, 0, 0, 0, 5, 12],
+                        'additives_count': [12, 7, 4, 1, 0, 0]
+                    }
+                    if sens[crit] == 'max':
+                        profils[f"pi{i}"][crit] = defaults[crit][i-1]
+                    else:
+                        profils[f"pi{i}"][crit] = defaults[crit][i-1]
+        
+        # Fonctions ELECTRE
+        def concordance_partielle(H, b, crit, sens):
+            if sens[crit] == 'max':
+                return 1 if H[crit] >= b[crit] else 0
+            else:
+                return 1 if H[crit] <= b[crit] else 0
+        
+        def concordance_globale(H, b, poids, sens):
+            num = sum(poids[c] * concordance_partielle(H, b, c, sens) for c in poids)
+            denom = sum(poids.values())
+            return num / denom
+        
+        # PESSIMISTE
+        classe_pess = "E'"
+        for i in reversed(range(1, 6)):
+            c = concordance_globale(produit, profils[f"pi{i}"], poids, sens)
+            if c >= lambda_threshold:
+                classe_pess = ["E'", "D'", "C'", "B'", "A'"][i-1]
+                break
+        
+        # OPTIMISTE
+        classe_opt = "A'"
+        for i in range(2, 7):
+            b = profils[f"pi{i-1}"]
+            c_biH = concordance_globale(b, produit, poids, sens)
+            c_Hbi = concordance_globale(produit, b, poids, sens)
+            if c_biH >= lambda_threshold and c_Hbi < lambda_threshold:
+                classe_opt = ["E'", "D'", "C'", "B'", "A'"][i-2]
+                break
+        
+        # Affichage ELECTRE TRI
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown(f"""
+            <div style='text-align:center; padding:1.5rem; background-color:#3498db22; border-radius:10px;'>
+                <h3>Procédure Pessimiste</h3>
+                <h1 style='color:#3498db; font-size:4rem; margin:0;'>{classe_pess}</h1>
+                <p style='color:#666;'>Classification conservatrice</p>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col2:
+            st.markdown(f"""
+            <div style='text-align:center; padding:1.5rem; background-color:#2ecc7122; border-radius:10px;'>
+                <h3>Procédure Optimiste</h3>
+                <h1 style='color:#2ecc71; font-size:4rem; margin:0;'>{classe_opt}</h1>
+                <p style='color:#666;'>Classification favorable</p>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        st.info(f"**Paramètres:** λ = {lambda_threshold} | Profils calculés sur {len(df_pain)+len(df_yaourt)} produits")
+        
+        # ==========================================
+        # ALGORITHME 3: SUPERNUTRI-SCORE
+        # ==========================================
+        st.markdown("---")
+        st.subheader("3️⃣ SuperNutri-Score (Modèle Amélioré)")
+        
+        st.info("""
+        **SuperNutri-Score = ELECTRE TRI + Eco-Score + Bio**
+        
+        Combinaison des 3 dimensions: Nutrition (ELECTRE) + Environnement (Eco) + Agriculture (Bio)
+        """)
+        
+        # Calcul SuperNutri-Score (basé sur pessimiste)
+        map_in = {"A'":1, "B'":2, "C'":3, "D'":4, "E'":5}
+        map_out = {1:"A", 2:"B", 3:"C", 4:"D", 5:"E"}
+        
+        score_super = map_in[classe_pess]
+        
+        # Règles
+        regles_appliquees = []
+        
+        # Eco-Score A
+        if ecoscore_grade == "A" and score_super > 1:
+            score_super -= 1
+            regles_appliquees.append("✅ Bonus Eco-Score A: +1 grade")
+        
+        # Eco-Score D/E
+        if ecoscore_grade in ["D", "E"] and score_super < 5:
+            score_super += 1
+            regles_appliquees.append("⚠️ Malus Eco-Score D/E: -1 grade")
+        
+        # Bio
+        if is_organic and ecoscore_grade != "E" and score_super > 1:
+            score_super -= 1
+            regles_appliquees.append("✅ Bonus Bio: +1 grade")
+        
+        # Limitation Eco E
+        if ecoscore_grade == "E":
+            score_super = max(score_super, 3)
+            regles_appliquees.append("⚠️ Limitation Eco-Score E: grade max = C")
+        
+        score_super = max(1, min(5, score_super))
+        supernutri_grade = map_out[score_super]
+        
+        # Affichage SuperNutri-Score
+        st.markdown(f"""
+        <div style='text-align:center; padding:2rem; background-color:{COLORS[supernutri_grade]}22; border-radius:10px; border: 3px solid {COLORS[supernutri_grade]};'>
+            <h2 style='color:#333; margin:0;'>SuperNutri-Score Final</h2>
+            <h1 style='color:{COLORS[supernutri_grade]}; font-size:7rem; margin:0.5rem 0;'>{supernutri_grade}</h1>
+            <p style='font-size:1.2rem; color:#666;'>
+                Base: {classe_pess} | Eco: {ecoscore_grade} | Bio: {'Oui' if is_organic else 'Non'}
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        if regles_appliquees:
+            st.markdown("**Règles appliquées:**")
+            for regle in regles_appliquees:
+                st.markdown(f"- {regle}")
+        
+        # ==========================================
+        # TABLEAU RÉCAPITULATIF
+        # ==========================================
+        st.markdown("---")
+        st.subheader("📋 Tableau Récapitulatif")
+        
+        recap_df = pd.DataFrame({
+            'Algorithme': ['Nutri-Score 2025', 'ELECTRE TRI Pessimiste', 'ELECTRE TRI Optimiste', 'SuperNutri-Score'],
+            'Grade': [nutriscore_grade, classe_pess, classe_opt, supernutri_grade],
+            'Score/Info': [nutriscore_score, f'λ={lambda_threshold}', f'λ={lambda_threshold}', f'ELECTRE + Eco + Bio'],
+            'Couleur': [COLORS[nutriscore_grade], '#3498db', '#2ecc71', COLORS[supernutri_grade]]
+        })
+        
+        st.dataframe(recap_df[['Algorithme', 'Grade', 'Score/Info']], use_container_width=True, hide_index=True)
+        
+        # Visualisation comparative
+        st.markdown("---")
+        st.subheader("📊 Comparaison Visuelle")
+        
+        grades_map = {'A':5, 'B':4, 'C':3, 'D':2, 'E':1, "A'":5, "B'":4, "C'":3, "D'":2, "E'":1}
+        
+        fig = go.Figure()
+        
+        fig.add_trace(go.Bar(
+            x=['Nutri-Score', 'ELECTRE Pess.', 'ELECTRE Opt.', 'SuperNutri'],
+            y=[grades_map[nutriscore_grade], grades_map[classe_pess], 
+               grades_map[classe_opt], grades_map[supernutri_grade]],
+            marker_color=[COLORS[nutriscore_grade], '#3498db', '#2ecc71', COLORS[supernutri_grade]],
+            text=[nutriscore_grade, classe_pess, classe_opt, supernutri_grade],
+            textposition='outside',
+            textfont=dict(size=20, color='black')
+        ))
+        
+        fig.update_layout(
+            yaxis_title="Qualité (1=E, 5=A)",
+            height=400,
+            showlegend=False,
+            yaxis=dict(range=[0, 6], tickmode='array', tickvals=[1,2,3,4,5], ticktext=['E','D','C','B','A'])
+        )
+        
+        st.plotly_chart(fig, use_container_width=True)
+
+# ============================================================
+# PAGE 2: ANALYSE DE DONNÉES
+# ============================================================
+elif page == "📊 Analyse de Données":
+    st.header("📊 Analyse des Données")
+    
+    tab1, tab2 = st.tabs(["🥖 Pains", "🥛 Yaourts"])
+    
+    with tab1:
+        st.subheader(f"Analyse des Pains ({len(df_pain)} produits)")
+        
+        if 'nutriscore_grade' in df_pain.columns:
+            pc = df_pain['nutriscore_grade'].value_counts().sort_index()
+            fig = go.Figure(go.Bar(
+                x=pc.index, y=pc.values,
+                marker_color=[COLORS.get(x, '#999') for x in pc.index],
+                text=pc.values, textposition='outside'
+            ))
+            fig.update_layout(title="Distribution Nutri-Score - Pains", height=400)
+            st.plotly_chart(fig, use_container_width=True)
+        
+        if is_real:
+            st.dataframe(df_pain.head(10), use_container_width=True)
+    
+    with tab2:
+        st.subheader(f"Analyse des Yaourts ({len(df_yaourt)} produits)")
+        
+        if 'nutriscore_grade' in df_yaourt.columns:
+            yc = df_yaourt['nutriscore_grade'].value_counts().sort_index()
+            fig = go.Figure(go.Bar(
+                x=yc.index, y=yc.values,
+                marker_color=[COLORS.get(x, '#999') for x in yc.index],
+                text=yc.values, textposition='outside'
+            ))
+            fig.update_layout(title="Distribution Nutri-Score - Yaourts", height=400)
+            st.plotly_chart(fig, use_container_width=True)
+        
+        if is_real:
+            st.dataframe(df_yaourt.head(10), use_container_width=True)
+
+# ============================================================
+# PAGE 3: COMPARAISON GROUPES
+# ============================================================
+elif page == "⚖️ Comparaison Groupes":
+    st.header("⚖️ Comparaison Pains vs Yaourts")
+    
+    if 'nutriscore_grade' in df_pain.columns and 'nutriscore_grade' in df_yaourt.columns:
+        grades = ['A','B','C','D','E']
+        pc = df_pain['nutriscore_grade'].value_counts().reindex(grades, fill_value=0)
+        yc = df_yaourt['nutriscore_grade'].value_counts().reindex(grades, fill_value=0)
+        
+        fig = go.Figure()
+        fig.add_trace(go.Bar(name='🥖 Pains', x=grades, y=pc.values,
+                            marker_color='#3498db', text=pc.values))
+        fig.add_trace(go.Bar(name='🥛 Yaourts', x=grades, y=yc.values,
+                            marker_color='#e74c3c', text=yc.values))
+        fig.update_layout(barmode='group', height=500, xaxis_title="Grade", yaxis_title="Nombre")
+        st.plotly_chart(fig, use_container_width=True)
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            p_good = (df_pain['nutriscore_grade'].isin(['A','B'])).sum()/len(df_pain)*100
+            st.metric("🥖 Pains A+B", f"{p_good:.1f}%")
+        with col2:
+            y_good = (df_yaourt['nutriscore_grade'].isin(['A','B'])).sum()/len(df_yaourt)*100
+            st.metric("🥛 Yaourts A+B", f"{y_good:.1f}%")
 
 # Footer
 st.markdown("---")
 st.markdown("""
-<div style='text-align: center; color: gray; padding: 1rem;'>
-    <p><strong>ELECTRE TRI</strong> - Analyse multicritère des produits alimentaires</p>
-    <p style='font-size: 0.9rem;'>Classification en 5 catégories | 8 critères nutritionnels</p>
+<div style='text-align:center;color:gray;padding:1rem;'>
+    <p><strong>SuperNutri-Score</strong> - Projet ELECTRE TRI</p>
+    <p style='font-size:0.9rem;'>3 algorithmes: Nutri-Score + ELECTRE TRI + SuperNutri-Score</p>
 </div>
 """, unsafe_allow_html=True)
