@@ -105,37 +105,16 @@ if page == "🧮 Calculateur Complet":
         is_organic = st.checkbox("Produit biologique (Bio)", 
                                  help="Produit issu de l'agriculture biologique")
     
-    # ========== SECTION 3: PARAMÈTRES ELECTRE TRI ==========
+    # ========== SECTION 3: PARAMÈTRES ELECTRE TRI (Fixes) ==========
     st.markdown("---")
-    st.subheader("⚙️ 3. Paramètres ELECTRE TRI (Modifiable)")
+    st.subheader("⚙️ 3. Paramètres ELECTRE TRI (Prédéfinis)")
     
-    with st.expander("🔧 Configuration avancée ELECTRE TRI", expanded=False):
-        st.markdown("#### Poids des critères")
-        
-        col1, col2, col3, col4 = st.columns(4)
-        
-        with col1:
-            w_energy = st.number_input("Poids Énergie", 1, 5, 2)
-            w_sat_fat = st.number_input("Poids Graisses sat.", 1, 5, 2)
-        
-        with col2:
-            w_sugar = st.number_input("Poids Sucres", 1, 5, 2)
-            w_sodium = st.number_input("Poids Sodium", 1, 5, 1)
-        
-        with col3:
-            w_protein = st.number_input("Poids Protéines", 1, 5, 1)
-            w_fiber = st.number_input("Poids Fibres", 1, 5, 1)
-        
-        with col4:
-            w_fruits = st.number_input("Poids Fruits/Lég.", 1, 5, 1)
-            w_additives = st.number_input("Poids Additifs", 1, 5, 1)
-        
-        st.markdown("#### Seuil de concordance (λ)")
-        lambda_threshold = st.slider("Seuil λ", 0.5, 1.0, 0.6, 0.05,
-                                     help="Seuil de majorité pour la classification")
-        
-        st.markdown("#### Profils limites (quantiles)")
-        st.info("Les profils sont calculés automatiquement à partir des quantiles des données.")
+    st.info("""
+    **Paramètres fixes du modèle:**
+    - Poids: Énergie=2, Sucres=2, Graisses sat.=2, Sodium=1, Protéines=1, Fibres=1, Fruits/Lég.=1, Additifs=1
+    - Seuils λ: 0.6 et 0.7 (les deux seront calculés)
+    - Profils: Calculés automatiquement sur 329 produits
+    """)
     
     # ========== BOUTON CALCUL ==========
     st.markdown("---")
@@ -263,16 +242,16 @@ if page == "🧮 Calculateur Complet":
             'additives_count': additives_count
         }
         
-        # Poids
+        # Poids fixes selon tableau
         poids = {
-            'energy_kj': w_energy,
-            'saturated_fat': w_sat_fat,
-            'sugar': w_sugar,
-            'sodium_g': w_sodium,
-            'protein': w_protein,
-            'fiber': w_fiber,
-            'fruits_veg_nuts_pct': w_fruits,
-            'additives_count': w_additives
+            'energy_kj': 2,
+            'saturated_fat': 2,
+            'sugar': 2,
+            'sodium_g': 1,
+            'protein': 1,
+            'fiber': 1,
+            'fruits_veg_nuts_pct': 1,
+            'additives_count': 1
         }
         
         # Sens d'optimisation
@@ -330,46 +309,82 @@ if page == "🧮 Calculateur Complet":
             denom = sum(poids.values())
             return num / denom
         
-        # PESSIMISTE
-        classe_pess = "E'"
+        # PESSIMISTE λ=0.6
+        classe_pess_06 = "E'"
         for i in reversed(range(1, 6)):
             c = concordance_globale(produit, profils[f"pi{i}"], poids, sens)
-            if c >= lambda_threshold:
-                classe_pess = ["E'", "D'", "C'", "B'", "A'"][i-1]
+            if c >= 0.6:
+                classe_pess_06 = ["E'", "D'", "C'", "B'", "A'"][i-1]
                 break
         
-        # OPTIMISTE
-        classe_opt = "A'"
+        # OPTIMISTE λ=0.6
+        classe_opt_06 = "A'"
         for i in range(2, 7):
             b = profils[f"pi{i-1}"]
             c_biH = concordance_globale(b, produit, poids, sens)
             c_Hbi = concordance_globale(produit, b, poids, sens)
-            if c_biH >= lambda_threshold and c_Hbi < lambda_threshold:
-                classe_opt = ["E'", "D'", "C'", "B'", "A'"][i-2]
+            if c_biH >= 0.6 and c_Hbi < 0.6:
+                classe_opt_06 = ["E'", "D'", "C'", "B'", "A'"][i-2]
                 break
         
-        # Affichage ELECTRE TRI
+        # PESSIMISTE λ=0.7
+        classe_pess_07 = "E'"
+        for i in reversed(range(1, 6)):
+            c = concordance_globale(produit, profils[f"pi{i}"], poids, sens)
+            if c >= 0.7:
+                classe_pess_07 = ["E'", "D'", "C'", "B'", "A'"][i-1]
+                break
+        
+        # OPTIMISTE λ=0.7
+        classe_opt_07 = "A'"
+        for i in range(2, 7):
+            b = profils[f"pi{i-1}"]
+            c_biH = concordance_globale(b, produit, poids, sens)
+            c_Hbi = concordance_globale(produit, b, poids, sens)
+            if c_biH >= 0.7 and c_Hbi < 0.7:
+                classe_opt_07 = ["E'", "D'", "C'", "B'", "A'"][i-2]
+                break
+        
+        # Affichage ELECTRE TRI - 4 résultats
+        st.markdown("**λ = 0.6**")
         col1, col2 = st.columns(2)
         
         with col1:
             st.markdown(f"""
             <div style='text-align:center; padding:1.5rem; background-color:#3498db22; border-radius:10px;'>
-                <h3>Procédure Pessimiste</h3>
-                <h1 style='color:#3498db; font-size:4rem; margin:0;'>{classe_pess}</h1>
-                <p style='color:#666;'>Classification conservatrice</p>
+                <h4>Pessimiste (λ=0.6)</h4>
+                <h1 style='color:#3498db; font-size:3.5rem; margin:0;'>{classe_pess_06}</h1>
             </div>
             """, unsafe_allow_html=True)
         
         with col2:
             st.markdown(f"""
             <div style='text-align:center; padding:1.5rem; background-color:#2ecc7122; border-radius:10px;'>
-                <h3>Procédure Optimiste</h3>
-                <h1 style='color:#2ecc71; font-size:4rem; margin:0;'>{classe_opt}</h1>
-                <p style='color:#666;'>Classification favorable</p>
+                <h4>Optimiste (λ=0.6)</h4>
+                <h1 style='color:#2ecc71; font-size:3.5rem; margin:0;'>{classe_opt_06}</h1>
             </div>
             """, unsafe_allow_html=True)
         
-        st.info(f"**Paramètres:** λ = {lambda_threshold} | Profils calculés sur {len(df_pain)+len(df_yaourt)} produits")
+        st.markdown("**λ = 0.7**")
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown(f"""
+            <div style='text-align:center; padding:1.5rem; background-color:#e67e2222; border-radius:10px;'>
+                <h4>Pessimiste (λ=0.7)</h4>
+                <h1 style='color:#e67e22; font-size:3.5rem; margin:0;'>{classe_pess_07}</h1>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col2:
+            st.markdown(f"""
+            <div style='text-align:center; padding:1.5rem; background-color:#9b59b622; border-radius:10px;'>
+                <h4>Optimiste (λ=0.7)</h4>
+                <h1 style='color:#9b59b6; font-size:3.5rem; margin:0;'>{classe_opt_07}</h1>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        st.info("**Paramètres:** Poids fixes (voir ci-dessus) | Profils calculés sur 329 produits")
         
         # ==========================================
         # ALGORITHME 3: SUPERNUTRI-SCORE
@@ -383,11 +398,11 @@ if page == "🧮 Calculateur Complet":
         Combinaison des 3 dimensions: Nutrition (ELECTRE) + Environnement (Eco) + Agriculture (Bio)
         """)
         
-        # Calcul SuperNutri-Score (basé sur pessimiste)
+        # Calcul SuperNutri-Score (basé sur pessimiste λ=0.6)
         map_in = {"A'":1, "B'":2, "C'":3, "D'":4, "E'":5}
         map_out = {1:"A", 2:"B", 3:"C", 4:"D", 5:"E"}
         
-        score_super = map_in[classe_pess]
+        score_super = map_in[classe_pess_06]
         
         # Règles
         regles_appliquees = []
@@ -421,7 +436,7 @@ if page == "🧮 Calculateur Complet":
             <h2 style='color:#333; margin:0;'>SuperNutri-Score Final</h2>
             <h1 style='color:{COLORS[supernutri_grade]}; font-size:7rem; margin:0.5rem 0;'>{supernutri_grade}</h1>
             <p style='font-size:1.2rem; color:#666;'>
-                Base: {classe_pess} | Eco: {ecoscore_grade} | Bio: {'Oui' if is_organic else 'Non'}
+                Base: ELECTRE Pessimiste λ=0.6 ({classe_pess_06}) | Eco: {ecoscore_grade} | Bio: {'Oui' if is_organic else 'Non'}
             </p>
         </div>
         """, unsafe_allow_html=True)
@@ -438,13 +453,33 @@ if page == "🧮 Calculateur Complet":
         st.subheader("📋 Tableau Récapitulatif")
         
         recap_df = pd.DataFrame({
-            'Algorithme': ['Nutri-Score 2025', 'ELECTRE TRI Pessimiste', 'ELECTRE TRI Optimiste', 'SuperNutri-Score'],
-            'Grade': [nutriscore_grade, classe_pess, classe_opt, supernutri_grade],
-            'Score/Info': [nutriscore_score, f'λ={lambda_threshold}', f'λ={lambda_threshold}', f'ELECTRE + Eco + Bio'],
-            'Couleur': [COLORS[nutriscore_grade], '#3498db', '#2ecc71', COLORS[supernutri_grade]]
+            'Algorithme': [
+                'Nutri-Score 2025',
+                'ELECTRE TRI Pessimiste (λ=0.6)',
+                'ELECTRE TRI Optimiste (λ=0.6)',
+                'ELECTRE TRI Pessimiste (λ=0.7)',
+                'ELECTRE TRI Optimiste (λ=0.7)',
+                'SuperNutri-Score'
+            ],
+            'Grade': [
+                nutriscore_grade,
+                classe_pess_06,
+                classe_opt_06,
+                classe_pess_07,
+                classe_opt_07,
+                supernutri_grade
+            ],
+            'Info': [
+                f'Score: {nutriscore_score}',
+                'Classification conservatrice',
+                'Classification favorable',
+                'Classification conservatrice (strict)',
+                'Classification favorable (strict)',
+                'ELECTRE + Eco + Bio'
+            ]
         })
         
-        st.dataframe(recap_df[['Algorithme', 'Grade', 'Score/Info']], use_container_width=True, hide_index=True)
+        st.dataframe(recap_df[['Algorithme', 'Grade', 'Info']], use_container_width=True, hide_index=True)
         
         # Visualisation comparative
         st.markdown("---")
@@ -455,13 +490,17 @@ if page == "🧮 Calculateur Complet":
         fig = go.Figure()
         
         fig.add_trace(go.Bar(
-            x=['Nutri-Score', 'ELECTRE Pess.', 'ELECTRE Opt.', 'SuperNutri'],
-            y=[grades_map[nutriscore_grade], grades_map[classe_pess], 
-               grades_map[classe_opt], grades_map[supernutri_grade]],
-            marker_color=[COLORS[nutriscore_grade], '#3498db', '#2ecc71', COLORS[supernutri_grade]],
-            text=[nutriscore_grade, classe_pess, classe_opt, supernutri_grade],
+            x=['Nutri-Score', 'ELECTRE\nPess. 0.6', 'ELECTRE\nOpt. 0.6', 
+               'ELECTRE\nPess. 0.7', 'ELECTRE\nOpt. 0.7', 'SuperNutri'],
+            y=[grades_map[nutriscore_grade], grades_map[classe_pess_06], 
+               grades_map[classe_opt_06], grades_map[classe_pess_07],
+               grades_map[classe_opt_07], grades_map[supernutri_grade]],
+            marker_color=[COLORS[nutriscore_grade], '#3498db', '#2ecc71', 
+                         '#e67e22', '#9b59b6', COLORS[supernutri_grade]],
+            text=[nutriscore_grade, classe_pess_06, classe_opt_06, 
+                  classe_pess_07, classe_opt_07, supernutri_grade],
             textposition='outside',
-            textfont=dict(size=20, color='black')
+            textfont=dict(size=18, color='black')
         ))
         
         fig.update_layout(
