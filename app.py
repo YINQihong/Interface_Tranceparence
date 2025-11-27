@@ -24,9 +24,132 @@ def load_data():
                               'ecoscore_grade': np.random.choice(['A','B','C','D','E'], 208)})
         return pain, yaourt, False
 
+# Fonctions ELECTRE TRI
+def concordance_partielle(H, b, crit, sens_dict):
+    if sens_dict[crit] == 'max':
+        return 1 if H[crit] >= b[crit] else 0
+    else:
+        return 1 if H[crit] <= b[crit] else 0
+
+def concordance_globale(H, b, poids_dict, sens_dict):
+    num = sum(poids_dict[c] * concordance_partielle(H, b, c, sens_dict) for c in poids_dict)
+    denom = sum(poids_dict.values())
+    return num / denom
+
+@st.cache_data
+def calculate_all_scores(df_pain, df_yaourt):
+    """Calcule ELECTRE TRI et SuperNutri-Score pour tous les produits"""
+    
+    # Paramètres fixes
+    poids = {
+        'energy_kj': 2, 'saturated_fat': 2, 'sugar': 2, 'sodium_g': 1,
+        'protein': 1, 'fiber': 1, 'fruits_veg_nuts_pct': 1, 'additives_count': 1
+    }
+    
+    sens = {
+        'energy_kj': 'min', 'saturated_fat': 'min', 'sugar': 'min', 'sodium_g': 'min',
+        'protein': 'max', 'fiber': 'max', 'fruits_veg_nuts_pct': 'max', 'additives_count': 'min'
+    }
+    
+    criteres = list(poids.keys())
+    quantiles = [0.05, 0.2, 0.4, 0.6, 0.8, 0.95]
+    
+    # Calcul profils
+    profils = {}
+    for i, q in enumerate(quantiles, start=1):
+        profils[f"pi{i}"] = {}
+        for crit in criteres:
+            if crit in df_pain.columns and crit in df_yaourt.columns:
+                data = pd.concat([df_pain[crit], df_yaourt[crit]]).dropna()
+                if sens[crit] == 'max':
+                    profils[f"pi{i}"][crit] = float(data.quantile(q))
+                else:
+                    profils[f"pi{i}"][crit] = float(data.quantile(1-q))
+            else:
+                defaults = {
+                    'energy_kj': [2000, 1500, 1200, 1100, 1050, 1000],
+                    'saturated_fat': [10, 5, 2, 1, 0.5, 0.3],
+                    'sugar': [18, 8, 4, 3, 2.5, 2],
+                    'sodium_g': [1.0, 0.7, 0.5, 0.4, 0.4, 0.35],
+                    'protein': [7, 8, 9, 10, 11, 12],
+                    'fiber': [0, 2.5, 4, 5.5, 8.5, 9.5],
+                    'fruits_veg_nuts_pct': [0, 0, 0, 0, 5, 12],
+                    'additives_count': [12, 7, 4, 1, 0, 0]
+                }
+                profils[f"pi{i}"][crit] = defaults[crit][i-1]
+    
+    def classify_product(row, lambda_val):
+        """Classifie un produit avec ELECTRE TRI"""
+        produit = {crit: row.get(crit, 0) for crit in criteres}
+        
+        # Pessimiste
+        classe_pess = "E'"
+        for i in reversed(range(1, 6)):
+            c = concordance_globale(produit, profils[f"pi{i}"], poids, sens)
+            if c >= lambda_val:
+                classe_pess = ["E'", "D'", "C'", "B'", "A'"][i-1]
+                break
+        
+        # Optimiste
+        classe_opt = "A'"
+        for i in range(2, 7):
+            b = profils[f"pi{i-1}"]
+            c_biH = concordance_globale(b, produit, poids, sens)
+            c_Hbi = concordance_globale(produit, b, poids, sens)
+            if c_biH >= lambda_val and c_Hbi < lambda_val:
+                classe_opt = ["E'", "D'", "C'", "B'", "A'"][i-2]
+                break
+        
+        return classe_pess, classe_opt
+    
+    def calculate_supernutri(row, electre_pess_06):
+        """Calcule SuperNutri-Score"""
+        map_in = {"A'":1, "B'":2, "C'":3, "D'":4, "E'":5}
+        map_out = {1:"A", 2:"B", 3:"C", 4:"D", 5:"E"}
+        
+        score = map_in[electre_pess_06]
+        eco = str(row.get('ecoscore_grade', 'C')).upper()
+        is_bio = str(row.get('is_organic', 'No')).lower() in ['yes', 'oui', '1', 'true']
+        
+        if eco == "A" and score > 1:
+            score -= 1
+        if eco in ["D", "E"] and score < 5:
+            score += 1
+        if is_bio and eco != "E" and score > 1:
+            score -= 1
+        if eco == "E":
+            score = max(score, 3)
+        
+        score = max(1, min(5, score))
+        return map_out[score]
+    
+    # Calculer pour les pains
+    df_pain_calc = df_pain.copy()
+    df_pain_calc[['electre_pess_06', 'electre_opt_06']] = df_pain_calc.apply(
+        lambda row: classify_product(row, 0.6), axis=1, result_type='expand')
+    df_pain_calc[['electre_pess_07', 'electre_opt_07']] = df_pain_calc.apply(
+        lambda row: classify_product(row, 0.7), axis=1, result_type='expand')
+    df_pain_calc['supernutri_score'] = df_pain_calc.apply(
+        lambda row: calculate_supernutri(row, row['electre_pess_06']), axis=1)
+    
+    # Calculer pour les yaourts
+    df_yaourt_calc = df_yaourt.copy()
+    df_yaourt_calc[['electre_pess_06', 'electre_opt_06']] = df_yaourt_calc.apply(
+        lambda row: classify_product(row, 0.6), axis=1, result_type='expand')
+    df_yaourt_calc[['electre_pess_07', 'electre_opt_07']] = df_yaourt_calc.apply(
+        lambda row: classify_product(row, 0.7), axis=1, result_type='expand')
+    df_yaourt_calc['supernutri_score'] = df_yaourt_calc.apply(
+        lambda row: calculate_supernutri(row, row['electre_pess_06']), axis=1)
+    
+    return df_pain_calc, df_yaourt_calc
+
 df_pain, df_yaourt, is_real = load_data()
 
-if not is_real:
+# Calculer tous les scores
+if is_real:
+    df_pain, df_yaourt = calculate_all_scores(df_pain, df_yaourt)
+    st.success("✅ Données chargées et scores calculés!")
+else:
     st.warning("⚠️ Données d'exemple. Ajoutez Products.csv et data_yaourt.csv pour les vraies données.")
 
 # Sidebar Navigation
@@ -523,34 +646,156 @@ elif page == "📊 Analyse de Données":
     with tab1:
         st.subheader(f"Analyse des Pains ({len(df_pain)} produits)")
         
-        if 'nutriscore_grade' in df_pain.columns:
-            pc = df_pain['nutriscore_grade'].value_counts().sort_index()
-            fig = go.Figure(go.Bar(
-                x=pc.index, y=pc.values,
-                marker_color=[COLORS.get(x, '#999') for x in pc.index],
-                text=pc.values, textposition='outside'
-            ))
-            fig.update_layout(title="Distribution Nutri-Score - Pains", height=400)
-            st.plotly_chart(fig, use_container_width=True)
-        
         if is_real:
-            st.dataframe(df_pain.head(10), use_container_width=True)
+            # Nutri-Score
+            st.markdown("#### Nutri-Score")
+            if 'nutriscore_grade' in df_pain.columns:
+                pc = df_pain['nutriscore_grade'].value_counts().sort_index()
+                fig = go.Figure(go.Bar(
+                    x=pc.index, y=pc.values,
+                    marker_color=[COLORS.get(x, '#999') for x in pc.index],
+                    text=pc.values, textposition='outside'
+                ))
+                fig.update_layout(title="Distribution Nutri-Score", height=300, showlegend=False)
+                st.plotly_chart(fig, use_container_width=True)
+            
+            # ELECTRE TRI
+            st.markdown("#### ELECTRE TRI")
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown("**λ = 0.6**")
+                # Pessimiste 0.6
+                if 'electre_pess_06' in df_pain.columns:
+                    p06 = df_pain['electre_pess_06'].value_counts().sort_index()
+                    fig = go.Figure(go.Bar(x=p06.index, y=p06.values, marker_color='#3498db',
+                                          text=p06.values, textposition='outside', name='Pess. 0.6'))
+                    fig.update_layout(title="Pessimiste λ=0.6", height=250, showlegend=False)
+                    st.plotly_chart(fig, use_container_width=True)
+                
+                # Optimiste 0.6
+                if 'electre_opt_06' in df_pain.columns:
+                    o06 = df_pain['electre_opt_06'].value_counts().sort_index()
+                    fig = go.Figure(go.Bar(x=o06.index, y=o06.values, marker_color='#2ecc71',
+                                          text=o06.values, textposition='outside', name='Opt. 0.6'))
+                    fig.update_layout(title="Optimiste λ=0.6", height=250, showlegend=False)
+                    st.plotly_chart(fig, use_container_width=True)
+            
+            with col2:
+                st.markdown("**λ = 0.7**")
+                # Pessimiste 0.7
+                if 'electre_pess_07' in df_pain.columns:
+                    p07 = df_pain['electre_pess_07'].value_counts().sort_index()
+                    fig = go.Figure(go.Bar(x=p07.index, y=p07.values, marker_color='#e67e22',
+                                          text=p07.values, textposition='outside', name='Pess. 0.7'))
+                    fig.update_layout(title="Pessimiste λ=0.7", height=250, showlegend=False)
+                    st.plotly_chart(fig, use_container_width=True)
+                
+                # Optimiste 0.7
+                if 'electre_opt_07' in df_pain.columns:
+                    o07 = df_pain['electre_opt_07'].value_counts().sort_index()
+                    fig = go.Figure(go.Bar(x=o07.index, y=o07.values, marker_color='#9b59b6',
+                                          text=o07.values, textposition='outside', name='Opt. 0.7'))
+                    fig.update_layout(title="Optimiste λ=0.7", height=250, showlegend=False)
+                    st.plotly_chart(fig, use_container_width=True)
+            
+            # SuperNutri-Score
+            st.markdown("#### SuperNutri-Score")
+            if 'supernutri_score' in df_pain.columns:
+                sn = df_pain['supernutri_score'].value_counts().sort_index()
+                fig = go.Figure(go.Bar(
+                    x=sn.index, y=sn.values,
+                    marker_color=[COLORS.get(x, '#999') for x in sn.index],
+                    text=sn.values, textposition='outside'
+                ))
+                fig.update_layout(title="Distribution SuperNutri-Score", height=300, showlegend=False)
+                st.plotly_chart(fig, use_container_width=True)
+            
+            # Tableau de données
+            st.markdown("#### Aperçu des données")
+            display_cols = ['product_name', 'nutriscore_grade', 'electre_pess_06', 'electre_opt_06',
+                           'electre_pess_07', 'electre_opt_07', 'supernutri_score']
+            display_cols = [c for c in display_cols if c in df_pain.columns]
+            st.dataframe(df_pain[display_cols].head(10), use_container_width=True)
+        else:
+            st.info("Chargez les vraies données pour voir les analyses complètes.")
     
     with tab2:
         st.subheader(f"Analyse des Yaourts ({len(df_yaourt)} produits)")
         
-        if 'nutriscore_grade' in df_yaourt.columns:
-            yc = df_yaourt['nutriscore_grade'].value_counts().sort_index()
-            fig = go.Figure(go.Bar(
-                x=yc.index, y=yc.values,
-                marker_color=[COLORS.get(x, '#999') for x in yc.index],
-                text=yc.values, textposition='outside'
-            ))
-            fig.update_layout(title="Distribution Nutri-Score - Yaourts", height=400)
-            st.plotly_chart(fig, use_container_width=True)
-        
         if is_real:
-            st.dataframe(df_yaourt.head(10), use_container_width=True)
+            # Nutri-Score
+            st.markdown("#### Nutri-Score")
+            if 'nutriscore_grade' in df_yaourt.columns:
+                yc = df_yaourt['nutriscore_grade'].value_counts().sort_index()
+                fig = go.Figure(go.Bar(
+                    x=yc.index, y=yc.values,
+                    marker_color=[COLORS.get(x, '#999') for x in yc.index],
+                    text=yc.values, textposition='outside'
+                ))
+                fig.update_layout(title="Distribution Nutri-Score", height=300, showlegend=False)
+                st.plotly_chart(fig, use_container_width=True)
+            
+            # ELECTRE TRI
+            st.markdown("#### ELECTRE TRI")
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown("**λ = 0.6**")
+                # Pessimiste 0.6
+                if 'electre_pess_06' in df_yaourt.columns:
+                    p06 = df_yaourt['electre_pess_06'].value_counts().sort_index()
+                    fig = go.Figure(go.Bar(x=p06.index, y=p06.values, marker_color='#3498db',
+                                          text=p06.values, textposition='outside'))
+                    fig.update_layout(title="Pessimiste λ=0.6", height=250, showlegend=False)
+                    st.plotly_chart(fig, use_container_width=True)
+                
+                # Optimiste 0.6
+                if 'electre_opt_06' in df_yaourt.columns:
+                    o06 = df_yaourt['electre_opt_06'].value_counts().sort_index()
+                    fig = go.Figure(go.Bar(x=o06.index, y=o06.values, marker_color='#2ecc71',
+                                          text=o06.values, textposition='outside'))
+                    fig.update_layout(title="Optimiste λ=0.6", height=250, showlegend=False)
+                    st.plotly_chart(fig, use_container_width=True)
+            
+            with col2:
+                st.markdown("**λ = 0.7**")
+                # Pessimiste 0.7
+                if 'electre_pess_07' in df_yaourt.columns:
+                    p07 = df_yaourt['electre_pess_07'].value_counts().sort_index()
+                    fig = go.Figure(go.Bar(x=p07.index, y=p07.values, marker_color='#e67e22',
+                                          text=p07.values, textposition='outside'))
+                    fig.update_layout(title="Pessimiste λ=0.7", height=250, showlegend=False)
+                    st.plotly_chart(fig, use_container_width=True)
+                
+                # Optimiste 0.7
+                if 'electre_opt_07' in df_yaourt.columns:
+                    o07 = df_yaourt['electre_opt_07'].value_counts().sort_index()
+                    fig = go.Figure(go.Bar(x=o07.index, y=o07.values, marker_color='#9b59b6',
+                                          text=o07.values, textposition='outside'))
+                    fig.update_layout(title="Optimiste λ=0.7", height=250, showlegend=False)
+                    st.plotly_chart(fig, use_container_width=True)
+            
+            # SuperNutri-Score
+            st.markdown("#### SuperNutri-Score")
+            if 'supernutri_score' in df_yaourt.columns:
+                sn = df_yaourt['supernutri_score'].value_counts().sort_index()
+                fig = go.Figure(go.Bar(
+                    x=sn.index, y=sn.values,
+                    marker_color=[COLORS.get(x, '#999') for x in sn.index],
+                    text=sn.values, textposition='outside'
+                ))
+                fig.update_layout(title="Distribution SuperNutri-Score", height=300, showlegend=False)
+                st.plotly_chart(fig, use_container_width=True)
+            
+            # Tableau de données
+            st.markdown("#### Aperçu des données")
+            display_cols = ['product_name', 'nutriscore_grade', 'electre_pess_06', 'electre_opt_06',
+                           'electre_pess_07', 'electre_opt_07', 'supernutri_score']
+            display_cols = [c for c in display_cols if c in df_yaourt.columns]
+            st.dataframe(df_yaourt[display_cols].head(10), use_container_width=True)
+        else:
+            st.info("Chargez les vraies données pour voir les analyses complètes.")
 
 # ============================================================
 # PAGE 3: COMPARAISON GROUPES
@@ -558,26 +803,156 @@ elif page == "📊 Analyse de Données":
 elif page == "⚖️ Comparaison Groupes":
     st.header("⚖️ Comparaison Pains vs Yaourts")
     
-    if 'nutriscore_grade' in df_pain.columns and 'nutriscore_grade' in df_yaourt.columns:
-        grades = ['A','B','C','D','E']
-        pc = df_pain['nutriscore_grade'].value_counts().reindex(grades, fill_value=0)
-        yc = df_yaourt['nutriscore_grade'].value_counts().reindex(grades, fill_value=0)
+    if is_real:
+        # Nutri-Score
+        st.subheader("1️⃣ Nutri-Score")
+        if 'nutriscore_grade' in df_pain.columns and 'nutriscore_grade' in df_yaourt.columns:
+            grades = ['A','B','C','D','E']
+            pc = df_pain['nutriscore_grade'].value_counts().reindex(grades, fill_value=0)
+            yc = df_yaourt['nutriscore_grade'].value_counts().reindex(grades, fill_value=0)
+            
+            fig = go.Figure()
+            fig.add_trace(go.Bar(name='🥖 Pains', x=grades, y=pc.values,
+                                marker_color='#3498db', text=pc.values, textposition='outside'))
+            fig.add_trace(go.Bar(name='🥛 Yaourts', x=grades, y=yc.values,
+                                marker_color='#e74c3c', text=yc.values, textposition='outside'))
+            fig.update_layout(barmode='group', height=400, xaxis_title="Grade", yaxis_title="Nombre")
+            st.plotly_chart(fig, use_container_width=True)
+            
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                p_good = (df_pain['nutriscore_grade'].isin(['A','B'])).sum()/len(df_pain)*100
+                st.metric("🥖 Pains A+B", f"{p_good:.1f}%")
+            with col2:
+                y_good = (df_yaourt['nutriscore_grade'].isin(['A','B'])).sum()/len(df_yaourt)*100
+                st.metric("🥛 Yaourts A+B", f"{y_good:.1f}%")
+            with col3:
+                diff = p_good - y_good
+                st.metric("Différence", f"{abs(diff):.1f}%", delta=f"{diff:.1f}%")
         
-        fig = go.Figure()
-        fig.add_trace(go.Bar(name='🥖 Pains', x=grades, y=pc.values,
-                            marker_color='#3498db', text=pc.values))
-        fig.add_trace(go.Bar(name='🥛 Yaourts', x=grades, y=yc.values,
-                            marker_color='#e74c3c', text=yc.values))
-        fig.update_layout(barmode='group', height=500, xaxis_title="Grade", yaxis_title="Nombre")
-        st.plotly_chart(fig, use_container_width=True)
+        # ELECTRE TRI
+        st.markdown("---")
+        st.subheader("2️⃣ ELECTRE TRI")
         
-        col1, col2 = st.columns(2)
-        with col1:
-            p_good = (df_pain['nutriscore_grade'].isin(['A','B'])).sum()/len(df_pain)*100
-            st.metric("🥖 Pains A+B", f"{p_good:.1f}%")
-        with col2:
-            y_good = (df_yaourt['nutriscore_grade'].isin(['A','B'])).sum()/len(df_yaourt)*100
-            st.metric("🥛 Yaourts A+B", f"{y_good:.1f}%")
+        tab1, tab2, tab3, tab4 = st.tabs(["Pessimiste λ=0.6", "Optimiste λ=0.6", 
+                                          "Pessimiste λ=0.7", "Optimiste λ=0.7"])
+        
+        with tab1:
+            if 'electre_pess_06' in df_pain.columns and 'electre_pess_06' in df_yaourt.columns:
+                grades = ["A'","B'","C'","D'","E'"]
+                pc = df_pain['electre_pess_06'].value_counts().reindex(grades, fill_value=0)
+                yc = df_yaourt['electre_pess_06'].value_counts().reindex(grades, fill_value=0)
+                
+                fig = go.Figure()
+                fig.add_trace(go.Bar(name='🥖 Pains', x=grades, y=pc.values,
+                                    marker_color='#3498db', text=pc.values, textposition='outside'))
+                fig.add_trace(go.Bar(name='🥛 Yaourts', x=grades, y=yc.values,
+                                    marker_color='#e74c3c', text=yc.values, textposition='outside'))
+                fig.update_layout(barmode='group', height=400, title="ELECTRE Pessimiste λ=0.6")
+                st.plotly_chart(fig, use_container_width=True)
+                
+                col1, col2 = st.columns(2)
+                with col1:
+                    p_good = (df_pain['electre_pess_06'].isin(["A'","B'"])).sum()/len(df_pain)*100
+                    st.metric("🥖 Pains A'+B'", f"{p_good:.1f}%")
+                with col2:
+                    y_good = (df_yaourt['electre_pess_06'].isin(["A'","B'"])).sum()/len(df_yaourt)*100
+                    st.metric("🥛 Yaourts A'+B'", f"{y_good:.1f}%")
+        
+        with tab2:
+            if 'electre_opt_06' in df_pain.columns and 'electre_opt_06' in df_yaourt.columns:
+                grades = ["A'","B'","C'","D'","E'"]
+                pc = df_pain['electre_opt_06'].value_counts().reindex(grades, fill_value=0)
+                yc = df_yaourt['electre_opt_06'].value_counts().reindex(grades, fill_value=0)
+                
+                fig = go.Figure()
+                fig.add_trace(go.Bar(name='🥖 Pains', x=grades, y=pc.values,
+                                    marker_color='#2ecc71', text=pc.values, textposition='outside'))
+                fig.add_trace(go.Bar(name='🥛 Yaourts', x=grades, y=yc.values,
+                                    marker_color='#e74c3c', text=yc.values, textposition='outside'))
+                fig.update_layout(barmode='group', height=400, title="ELECTRE Optimiste λ=0.6")
+                st.plotly_chart(fig, use_container_width=True)
+                
+                col1, col2 = st.columns(2)
+                with col1:
+                    p_good = (df_pain['electre_opt_06'].isin(["A'","B'"])).sum()/len(df_pain)*100
+                    st.metric("🥖 Pains A'+B'", f"{p_good:.1f}%")
+                with col2:
+                    y_good = (df_yaourt['electre_opt_06'].isin(["A'","B'"])).sum()/len(df_yaourt)*100
+                    st.metric("🥛 Yaourts A'+B'", f"{y_good:.1f}%")
+        
+        with tab3:
+            if 'electre_pess_07' in df_pain.columns and 'electre_pess_07' in df_yaourt.columns:
+                grades = ["A'","B'","C'","D'","E'"]
+                pc = df_pain['electre_pess_07'].value_counts().reindex(grades, fill_value=0)
+                yc = df_yaourt['electre_pess_07'].value_counts().reindex(grades, fill_value=0)
+                
+                fig = go.Figure()
+                fig.add_trace(go.Bar(name='🥖 Pains', x=grades, y=pc.values,
+                                    marker_color='#e67e22', text=pc.values, textposition='outside'))
+                fig.add_trace(go.Bar(name='🥛 Yaourts', x=grades, y=yc.values,
+                                    marker_color='#e74c3c', text=yc.values, textposition='outside'))
+                fig.update_layout(barmode='group', height=400, title="ELECTRE Pessimiste λ=0.7")
+                st.plotly_chart(fig, use_container_width=True)
+                
+                col1, col2 = st.columns(2)
+                with col1:
+                    p_good = (df_pain['electre_pess_07'].isin(["A'","B'"])).sum()/len(df_pain)*100
+                    st.metric("🥖 Pains A'+B'", f"{p_good:.1f}%")
+                with col2:
+                    y_good = (df_yaourt['electre_pess_07'].isin(["A'","B'"])).sum()/len(df_yaourt)*100
+                    st.metric("🥛 Yaourts A'+B'", f"{y_good:.1f}%")
+        
+        with tab4:
+            if 'electre_opt_07' in df_pain.columns and 'electre_opt_07' in df_yaourt.columns:
+                grades = ["A'","B'","C'","D'","E'"]
+                pc = df_pain['electre_opt_07'].value_counts().reindex(grades, fill_value=0)
+                yc = df_yaourt['electre_opt_07'].value_counts().reindex(grades, fill_value=0)
+                
+                fig = go.Figure()
+                fig.add_trace(go.Bar(name='🥖 Pains', x=grades, y=pc.values,
+                                    marker_color='#9b59b6', text=pc.values, textposition='outside'))
+                fig.add_trace(go.Bar(name='🥛 Yaourts', x=grades, y=yc.values,
+                                    marker_color='#e74c3c', text=yc.values, textposition='outside'))
+                fig.update_layout(barmode='group', height=400, title="ELECTRE Optimiste λ=0.7")
+                st.plotly_chart(fig, use_container_width=True)
+                
+                col1, col2 = st.columns(2)
+                with col1:
+                    p_good = (df_pain['electre_opt_07'].isin(["A'","B'"])).sum()/len(df_pain)*100
+                    st.metric("🥖 Pains A'+B'", f"{p_good:.1f}%")
+                with col2:
+                    y_good = (df_yaourt['electre_opt_07'].isin(["A'","B'"])).sum()/len(df_yaourt)*100
+                    st.metric("🥛 Yaourts A'+B'", f"{y_good:.1f}%")
+        
+        # SuperNutri-Score
+        st.markdown("---")
+        st.subheader("3️⃣ SuperNutri-Score")
+        if 'supernutri_score' in df_pain.columns and 'supernutri_score' in df_yaourt.columns:
+            grades = ['A','B','C','D','E']
+            pc = df_pain['supernutri_score'].value_counts().reindex(grades, fill_value=0)
+            yc = df_yaourt['supernutri_score'].value_counts().reindex(grades, fill_value=0)
+            
+            fig = go.Figure()
+            fig.add_trace(go.Bar(name='🥖 Pains', x=grades, y=pc.values,
+                                marker_color='#3498db', text=pc.values, textposition='outside'))
+            fig.add_trace(go.Bar(name='🥛 Yaourts', x=grades, y=yc.values,
+                                marker_color='#e74c3c', text=yc.values, textposition='outside'))
+            fig.update_layout(barmode='group', height=400, xaxis_title="Grade", yaxis_title="Nombre")
+            st.plotly_chart(fig, use_container_width=True)
+            
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                p_good = (df_pain['supernutri_score'].isin(['A','B'])).sum()/len(df_pain)*100
+                st.metric("🥖 Pains A+B", f"{p_good:.1f}%")
+            with col2:
+                y_good = (df_yaourt['supernutri_score'].isin(['A','B'])).sum()/len(df_yaourt)*100
+                st.metric("🥛 Yaourts A+B", f"{y_good:.1f}%")
+            with col3:
+                diff = p_good - y_good
+                st.metric("Différence", f"{abs(diff):.1f}%", delta=f"{diff:.1f}%")
+    else:
+        st.info("Chargez les vraies données pour voir les comparaisons complètes.")
 
 # Footer
 st.markdown("---")
