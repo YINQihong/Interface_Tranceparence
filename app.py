@@ -483,7 +483,6 @@ if page == "📖 Transparence des Algorithmes":
         - Les bonus/malus appliqués
         - Le grade final
         
-        **100% transparent!**
         """)
     
     # ========== SYNTHÈSE ==========
@@ -552,7 +551,6 @@ if page == "📖 Transparence des Algorithmes":
     **L'objectif commun:** Permettre au consommateur de faire des choix éclairés en comprenant 
     **exactement comment** les algorithmes arrivent à leurs conclusions.
     
-    ✨ **Aucun paramètre caché, aucune "boîte noire" - Transparence totale!**
     """)
 
 # ============================================================
