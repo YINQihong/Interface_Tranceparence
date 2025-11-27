@@ -352,6 +352,8 @@ if page == "📖 Transparence des Algorithmes":
         **Adaptable:**
         Profils recalculés sur vraies données
         
+        ---
+        
         ### ⚙️ Calcul de Concordance
         
         Pour chaque critère:
@@ -359,11 +361,10 @@ if page == "📖 Transparence des Algorithmes":
         - Sinon → 0
         
         Concordance globale:
-```
+
         C = Σ(poids × concordance) 
             ─────────────────────
                 Σ(poids)
-```
         
         Si C ≥ λ → le produit dépasse le profil
         """)
