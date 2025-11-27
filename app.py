@@ -390,31 +390,30 @@ if page == "📖 Transparence des Algorithmes":
         - A' → A, B' → B, C' → C, D' → D, E' → E
         
         **Étape 2: Bonus Green-Score A**
-```python
-        if green_score == 'A' and grade > A:
-            grade += 1  # Amélioration d'un niveau
-```
-        *Pourquoi?* Récompense l'excellence environnementale
+        """)
         
-        **Étape 3: Malus Green-Score D/E**
-```python
-        if green_score in ['D', 'E'] and grade < E:
-            grade -= 1  # Dégradation d'un niveau
-```
-        *Pourquoi?* Pénalise l'impact environnemental élevé
+        st.code("""if green_score == 'A' and grade > A:
+    grade += 1  # Amélioration d'un niveau""", language="python")
         
-        **Étape 4: Bonus Bio**
-```python
-        if is_bio and green_score != 'E' and grade > A:
-            grade += 1  # Amélioration d'un niveau
-```
-        *Pourquoi?* Valorise l'agriculture biologique (si pas de Green-Score E)
+        st.markdown("*Pourquoi?* Récompense l'excellence environnementale")
+        st.markdown("**Étape 3: Malus Green-Score D/E**")
         
-        **Étape 5: Limitation Green-Score E**
-```python
-        if green_score == 'E':
-            grade = max(grade, C)  # Plafond à C
-```
+        st.code("""if green_score in ['D', 'E'] and grade < E:
+    grade -= 1  # Dégradation d'un niveau""", language="python")
+        
+        st.markdown("*Pourquoi?* Pénalise l'impact environnemental élevé")
+        st.markdown("**Étape 4: Bonus Bio**")
+        
+        st.code("""if is_bio and green_score != 'E' and grade > A:
+    grade += 1  # Amélioration d'un niveau""", language="python")
+        
+        st.markdown("*Pourquoi?* Valorise l'agriculture biologique (si pas de Green-Score E)")
+        st.markdown("**Étape 5: Limitation Green-Score E**")
+        
+        st.code("""if green_score == 'E':
+    grade = max(grade, C)  # Plafond à C""", language="python")
+        
+        st.markdown("""
         *Pourquoi?* Un produit très polluant ne peut pas avoir A ou B
         
         ### 🎨 Grade Final
