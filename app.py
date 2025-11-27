@@ -234,6 +234,24 @@ if page == "🧮 Calculateur Complet":
     - Poids: Énergie=2, Sucres=2, Graisses sat.=2, Sodium=1, Protéines=1, Fibres=1, Fruits/Lég.=1, Additifs=1
     - Seuils λ: 0.6 et 0.7 (les deux seront calculés)
     """)
+
+    # ========== SECTION 4: SUPERNUTRI-SCORE (Règles) ==========
+    st.markdown("---")
+    st.subheader("🌟 4. SuperNutri-Score (Règles Prédéfinies)")
+    
+    st.info("""
+    **SuperNutri-Score = ELECTRE TRI + Green-Score + Bio**
+    
+    **Règles de calcul:**
+    1. **Base:** ELECTRE TRI Pessimiste λ=0.6 (A'→A, B'→B, C'→C, D'→D, E'→E)
+    2. **Bonus Green-Score A:** +1 grade (mais pas au-dessus de A)
+    3. **Malus Green-Score D/E:** -1 grade
+    4. **Bonus Bio:** +1 grade (non applicable si Green-Score = E)
+    5. **Limitation:** Si Green-Score = E → grade maximum = C
+    
+    *Toutes les règles sont fixes et transparentes pour le consommateur.*
+    """)
+
     
     # ========== BOUTON CALCUL ==========
     st.markdown("---")
@@ -502,8 +520,6 @@ if page == "🧮 Calculateur Complet":
                 <h1 style='color:#9b59b6; font-size:3.5rem; margin:0;'>{classe_opt_07}</h1>
             </div>
             """, unsafe_allow_html=True)
-        
-        st.info("**Paramètres:** Poids fixes (voir ci-dessus) | Profils calculés sur 329 produits")
         
         # ==========================================
         # ALGORITHME 3: SUPERNUTRI-SCORE
