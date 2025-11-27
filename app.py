@@ -815,16 +815,21 @@ elif page == "⚖️ Comparaison Groupes":
             fig.update_layout(barmode='group', height=400, xaxis_title="Grade", yaxis_title="Nombre")
             st.plotly_chart(fig, use_container_width=True)
             
-            col1, col2, col3 = st.columns(3)
+            # 显示每个grade的百分比
+            st.markdown("#### Répartition en pourcentage")
+            col1, col2 = st.columns(2)
+            
             with col1:
-                p_good = (df_pain['nutriscore_grade'].isin(['A','B'])).sum()/len(df_pain)*100
-                st.metric("🥖 Pains A+B", f"{p_good:.1f}%")
+                st.markdown("**🥖 Pains**")
+                for grade in grades:
+                    pct = (pc[grade] / len(df_pain) * 100)
+                    st.metric(f"Grade {grade}", f"{pct:.1f}%", label_visibility="visible")
+            
             with col2:
-                y_good = (df_yaourt['nutriscore_grade'].isin(['A','B'])).sum()/len(df_yaourt)*100
-                st.metric("🥛 Yaourts A+B", f"{y_good:.1f}%")
-            with col3:
-                diff = p_good - y_good
-                st.metric("Différence", f"{abs(diff):.1f}%", delta=f"{diff:.1f}%")
+                st.markdown("**🥛 Yaourts**")
+                for grade in grades:
+                    pct = (yc[grade] / len(df_yaourt) * 100)
+                    st.metric(f"Grade {grade}", f"{pct:.1f}%", label_visibility="visible")
         
         # ELECTRE TRI
         st.markdown("---")
@@ -847,13 +852,18 @@ elif page == "⚖️ Comparaison Groupes":
                 fig.update_layout(barmode='group', height=400, title="ELECTRE Pessimiste λ=0.6")
                 st.plotly_chart(fig, use_container_width=True)
                 
+                st.markdown("#### Répartition en pourcentage")
                 col1, col2 = st.columns(2)
                 with col1:
-                    p_good = (df_pain['electre_pess_06'].isin(["A'","B'"])).sum()/len(df_pain)*100
-                    st.metric("🥖 Pains A'+B'", f"{p_good:.1f}%")
+                    st.markdown("**🥖 Pains**")
+                    for grade in grades:
+                        pct = (pc[grade] / len(df_pain) * 100)
+                        st.metric(f"Grade {grade}", f"{pct:.1f}%", label_visibility="visible")
                 with col2:
-                    y_good = (df_yaourt['electre_pess_06'].isin(["A'","B'"])).sum()/len(df_yaourt)*100
-                    st.metric("🥛 Yaourts A'+B'", f"{y_good:.1f}%")
+                    st.markdown("**🥛 Yaourts**")
+                    for grade in grades:
+                        pct = (yc[grade] / len(df_yaourt) * 100)
+                        st.metric(f"Grade {grade}", f"{pct:.1f}%", label_visibility="visible")
         
         with tab2:
             if 'electre_opt_06' in df_pain.columns and 'electre_opt_06' in df_yaourt.columns:
@@ -869,13 +879,18 @@ elif page == "⚖️ Comparaison Groupes":
                 fig.update_layout(barmode='group', height=400, title="ELECTRE Optimiste λ=0.6")
                 st.plotly_chart(fig, use_container_width=True)
                 
+                st.markdown("#### Répartition en pourcentage")
                 col1, col2 = st.columns(2)
                 with col1:
-                    p_good = (df_pain['electre_opt_06'].isin(["A'","B'"])).sum()/len(df_pain)*100
-                    st.metric("🥖 Pains A'+B'", f"{p_good:.1f}%")
+                    st.markdown("**🥖 Pains**")
+                    for grade in grades:
+                        pct = (pc[grade] / len(df_pain) * 100)
+                        st.metric(f"Grade {grade}", f"{pct:.1f}%", label_visibility="visible")
                 with col2:
-                    y_good = (df_yaourt['electre_opt_06'].isin(["A'","B'"])).sum()/len(df_yaourt)*100
-                    st.metric("🥛 Yaourts A'+B'", f"{y_good:.1f}%")
+                    st.markdown("**🥛 Yaourts**")
+                    for grade in grades:
+                        pct = (yc[grade] / len(df_yaourt) * 100)
+                        st.metric(f"Grade {grade}", f"{pct:.1f}%", label_visibility="visible")
         
         with tab3:
             if 'electre_pess_07' in df_pain.columns and 'electre_pess_07' in df_yaourt.columns:
@@ -891,13 +906,18 @@ elif page == "⚖️ Comparaison Groupes":
                 fig.update_layout(barmode='group', height=400, title="ELECTRE Pessimiste λ=0.7")
                 st.plotly_chart(fig, use_container_width=True)
                 
+                st.markdown("#### Répartition en pourcentage")
                 col1, col2 = st.columns(2)
                 with col1:
-                    p_good = (df_pain['electre_pess_07'].isin(["A'","B'"])).sum()/len(df_pain)*100
-                    st.metric("🥖 Pains A'+B'", f"{p_good:.1f}%")
+                    st.markdown("**🥖 Pains**")
+                    for grade in grades:
+                        pct = (pc[grade] / len(df_pain) * 100)
+                        st.metric(f"Grade {grade}", f"{pct:.1f}%", label_visibility="visible")
                 with col2:
-                    y_good = (df_yaourt['electre_pess_07'].isin(["A'","B'"])).sum()/len(df_yaourt)*100
-                    st.metric("🥛 Yaourts A'+B'", f"{y_good:.1f}%")
+                    st.markdown("**🥛 Yaourts**")
+                    for grade in grades:
+                        pct = (yc[grade] / len(df_yaourt) * 100)
+                        st.metric(f"Grade {grade}", f"{pct:.1f}%", label_visibility="visible")
         
         with tab4:
             if 'electre_opt_07' in df_pain.columns and 'electre_opt_07' in df_yaourt.columns:
@@ -913,13 +933,18 @@ elif page == "⚖️ Comparaison Groupes":
                 fig.update_layout(barmode='group', height=400, title="ELECTRE Optimiste λ=0.7")
                 st.plotly_chart(fig, use_container_width=True)
                 
+                st.markdown("#### Répartition en pourcentage")
                 col1, col2 = st.columns(2)
                 with col1:
-                    p_good = (df_pain['electre_opt_07'].isin(["A'","B'"])).sum()/len(df_pain)*100
-                    st.metric("🥖 Pains A'+B'", f"{p_good:.1f}%")
+                    st.markdown("**🥖 Pains**")
+                    for grade in grades:
+                        pct = (pc[grade] / len(df_pain) * 100)
+                        st.metric(f"Grade {grade}", f"{pct:.1f}%", label_visibility="visible")
                 with col2:
-                    y_good = (df_yaourt['electre_opt_07'].isin(["A'","B'"])).sum()/len(df_yaourt)*100
-                    st.metric("🥛 Yaourts A'+B'", f"{y_good:.1f}%")
+                    st.markdown("**🥛 Yaourts**")
+                    for grade in grades:
+                        pct = (yc[grade] / len(df_yaourt) * 100)
+                        st.metric(f"Grade {grade}", f"{pct:.1f}%", label_visibility="visible")
         
         # SuperNutri-Score
         st.markdown("---")
@@ -937,16 +962,18 @@ elif page == "⚖️ Comparaison Groupes":
             fig.update_layout(barmode='group', height=400, xaxis_title="Grade", yaxis_title="Nombre")
             st.plotly_chart(fig, use_container_width=True)
             
-            col1, col2, col3 = st.columns(3)
+            st.markdown("#### Répartition en pourcentage")
+            col1, col2 = st.columns(2)
             with col1:
-                p_good = (df_pain['supernutri_score'].isin(['A','B'])).sum()/len(df_pain)*100
-                st.metric("🥖 Pains A+B", f"{p_good:.1f}%")
+                st.markdown("**🥖 Pains**")
+                for grade in grades:
+                    pct = (pc[grade] / len(df_pain) * 100)
+                    st.metric(f"Grade {grade}", f"{pct:.1f}%", label_visibility="visible")
             with col2:
-                y_good = (df_yaourt['supernutri_score'].isin(['A','B'])).sum()/len(df_yaourt)*100
-                st.metric("🥛 Yaourts A+B", f"{y_good:.1f}%")
-            with col3:
-                diff = p_good - y_good
-                st.metric("Différence", f"{abs(diff):.1f}%", delta=f"{diff:.1f}%")
+                st.markdown("**🥛 Yaourts**")
+                for grade in grades:
+                    pct = (yc[grade] / len(df_yaourt) * 100)
+                    st.metric(f"Grade {grade}", f"{pct:.1f}%", label_visibility="visible")
     else:
         st.info("Chargez les vraies données pour voir les comparaisons complètes.")
 
