@@ -182,16 +182,13 @@ if page == "🧮 Calculateur Complet":
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        st.markdown("#### Énergie")
         energy_kj = st.number_input("Énergie (kJ)", 0, 4000, 1000, 
                                     help="Valeur énergétique en kilojoules")
     
     with col2:
-        st.markdown("#### Graisses")
         saturated_fat = st.number_input("Graisses saturées (g)", 0.0, 100.0, 1.0, 0.1)
     
     with col3:
-        st.markdown("#### Sucres")
         sugar = st.number_input("Sucres (g)", 0.0, 100.0, 5.0, 0.1)
     
     col1, col2, col3 = st.columns(3)
@@ -236,7 +233,6 @@ if page == "🧮 Calculateur Complet":
     **Paramètres fixes du modèle:**
     - Poids: Énergie=2, Sucres=2, Graisses sat.=2, Sodium=1, Protéines=1, Fibres=1, Fruits/Lég.=1, Additifs=1
     - Seuils λ: 0.6 et 0.7 (les deux seront calculés)
-    - Profils: Calculés automatiquement sur 329 produits
     """)
     
     # ========== BOUTON CALCUL ==========
