@@ -155,6 +155,7 @@ else:
 # Sidebar Navigation
 st.sidebar.title("📊 Navigation")
 page = st.sidebar.radio("", [
+    "📖 Transparence des Algorithmes",
     "🧮 Calculateur Complet",
     "📊 Analyse de Données", 
     "⚖️ Comparaison Groupes"
@@ -163,9 +164,401 @@ page = st.sidebar.radio("", [
 COLORS = {'A':'#038141','B':'#85BB2F','C':'#FECB02','D':'#EE8100','E':'#E63E11'}
 
 # ============================================================
+# PAGE 0: TRANSPARENCE DES ALGORITHMES
+# ============================================================
+if page == "📖 Transparence des Algorithmes":
+    st.header("📖 Transparence des Algorithmes de Décision")
+    
+    st.markdown("""
+    Dans le cadre du cours **"Transparence des Algorithmes pour la Décision"**, nous présentons 
+    trois modèles d'évaluation nutritionnelle avec une transparence totale sur leurs mécanismes de calcul.
+    """)
+    
+    # ========== NUTRI-SCORE 2025 ==========
+    st.markdown("---")
+    st.subheader("1️⃣ Nutri-Score 2025 (ANSES)")
+    
+    col1, col2 = st.columns([2, 1])
+    
+    with col1:
+        st.markdown("""
+        ### 🎯 Principe
+        Le Nutri-Score est un système de notation officiel développé par l'ANSES (Agence nationale de sécurité sanitaire).
+        Il attribue un score de -15 à +40 basé sur la composition nutritionnelle pour 100g de produit.
+        
+        ### 📊 Calcul du Score
+        **Score Final = Points Négatifs - Points Positifs**
+        
+        #### ❌ Points Négatifs (0-60 points)
+        - **Énergie (kJ):** 0-10 points
+          - *Pourquoi?* L'excès calorique contribue à l'obésité
+          - Seuils: 335 kJ = 1pt, 670 kJ = 2pts, ..., 3350+ kJ = 10pts
+        
+        - **Graisses saturées (g):** 0-10 points
+          - *Pourquoi?* Augmentent le risque cardiovasculaire
+          - Seuils: 1g = 1pt, 2g = 2pts, ..., 10+ g = 10pts
+        
+        - **Sucres (g):** 0-15 points
+          - *Pourquoi?* Favorisent diabète et obésité
+          - Seuils: 3.4g = 1pt, 6.8g = 2pts, ..., 51+ g = 15pts
+        
+        - **Sel (g):** 0-20 points
+          - *Pourquoi?* Hypertension artérielle
+          - Seuils: 0.2g = 1pt, 0.4g = 2pts, ..., 4.0+ g = 20pts
+        
+        #### ✅ Points Positifs (0-15 points)
+        - **Fruits/Légumes/Noix (%):** 0-5 points
+          - *Pourquoi?* Riches en vitamines, minéraux, fibres
+          - >40% = 1pt, >60% = 2pts, >80% = 5pts
+        
+        - **Fibres (g):** 0-5 points
+          - *Pourquoi?* Santé digestive, satiété
+          - Seuils: 0.9g = 1pt, 1.9g = 2pts, ..., 4.7+ g = 5pts
+        
+        - **Protéines (g):** 0-5 points
+          - *Pourquoi?* Essentielles pour l'organisme
+          - Seuils: 1.6g = 1pt, 3.2g = 2pts, ..., 8.0+ g = 5pts
+        
+        ### ⚖️ Règle Spéciale 2025
+        **Si Points Négatifs ≥ 11 ET Fruits/Légumes < 80%**
+        → Les points protéines ne sont PAS comptés
+        
+        *Pourquoi?* Éviter que des produits trop gras/sucrés/salés obtiennent un bon score 
+        uniquement grâce aux protéines.
+        
+        ### 🎨 Attribution du Grade
+        - **A (Vert foncé):** Score ≤ -1 (Meilleure qualité)
+        - **B (Vert clair):** Score 0 à 2
+        - **C (Jaune):** Score 3 à 10
+        - **D (Orange):** Score 11 à 18
+        - **E (Rouge):** Score ≥ 19 (Moins bonne qualité)
+        """)
+    
+    with col2:
+        st.markdown("""
+        ### 📌 Transparence
+        
+        ✅ **Tous les seuils sont publics**
+        
+        ✅ **Formule simple et reproductible**
+        
+        ✅ **Basé sur des preuves scientifiques**
+        
+        ✅ **Validé par l'ANSES**
+        
+        ### 🔍 Exemple
+        **Pain complet:**
+        - Énergie: 1050 kJ → 2 pts
+        - Graisses sat.: 0.8g → 0 pts
+        - Sucres: 2.1g → 0 pts
+        - Sel: 1.05g → 2 pts
+        - **Négatifs = 4 pts**
+        
+        - Fruits/Lég.: 5% → 0 pts
+        - Fibres: 8.5g → 5 pts
+        - Protéines: 10.2g → 2 pts
+        - **Positifs = 7 pts**
+        
+        **Score = 4 - 7 = -3**
+        **→ Grade A** ✅
+        """)
+    
+    # ========== ELECTRE TRI ==========
+    st.markdown("---")
+    st.subheader("2️⃣ ELECTRE TRI (Méthode Multicritère)")
+    
+    col1, col2 = st.columns([2, 1])
+    
+    with col1:
+        st.markdown("""
+        ### 🎯 Principe
+        ELECTRE TRI est une méthode de classification multicritère développée pour des décisions complexes.
+        Elle compare chaque produit à des **profils de référence** pour déterminer sa catégorie.
+        
+        ### 📊 Les 8 Critères Évalués
+        
+        | Critère | Poids | Sens | Pourquoi? |
+        |---------|-------|------|-----------|
+        | **Énergie** | 2 | ⬇️ Minimiser | Contrôle calorique |
+        | **Graisses saturées** | 2 | ⬇️ Minimiser | Santé cardiovasculaire |
+        | **Sucres** | 2 | ⬇️ Minimiser | Prévention diabète |
+        | **Sodium** | 1 | ⬇️ Minimiser | Hypertension |
+        | **Protéines** | 1 | ⬆️ Maximiser | Nutrition essentielle |
+        | **Fibres** | 1 | ⬆️ Maximiser | Santé digestive |
+        | **Fruits/Légumes** | 1 | ⬆️ Maximiser | Apports bénéfiques |
+        | **Additifs** | 1 | ⬇️ Minimiser | Naturalité |
+        
+        ### 🎚️ Profils de Référence
+        6 profils (π1 à π6) calculés automatiquement sur les **329 produits** (Pains + Yaourts):
+        - **π1:** Quantile 5% ou 95% (selon le sens)
+        - **π2:** Quantile 20% ou 80%
+        - **π3:** Quantile 40% ou 60%
+        - **π4:** Quantile 60% ou 40%
+        - **π5:** Quantile 80% ou 20%
+        - **π6:** Quantile 95% ou 5%
+        
+        Ces profils définissent les frontières entre les classes A', B', C', D', E'.
+        
+        ### 🔄 Deux Procédures
+        
+        **Pessimiste (Conservative):**
+        - Compare du meilleur (π5) vers le moins bon (π1)
+        - Classe le produit dès qu'il dépasse un profil
+        - **Plus strict** → Grades souvent plus bas
+        
+        **Optimiste (Favorable):**
+        - Compare du moins bon (π1) vers le meilleur (π6)
+        - Classe le produit au niveau où il ne dépasse plus
+        - **Plus généreux** → Grades souvent plus hauts
+        
+        ### 🎛️ Seuil Lambda (λ)
+        **λ = niveau de concordance requis**
+        - **λ = 0.6:** 60% des critères (pondérés) doivent être favorables
+        - **λ = 0.7:** 70% des critères doivent être favorables (plus strict)
+        
+        ### 🎨 Attribution des Classes
+        - **A' (Excellent):** Dépasse π5
+        - **B' (Très bon):** Entre π4 et π5
+        - **C' (Bon):** Entre π3 et π4
+        - **D' (Moyen):** Entre π2 et π3
+        - **E' (À améliorer):** En dessous de π2
+        """)
+    
+    with col2:
+        st.markdown("""
+        ### 📌 Transparence
+        
+        ✅ **8 critères explicites**
+        
+        ✅ **Poids justifiés et fixes**
+        
+        ✅ **Profils calculés sur vraies données**
+        
+        ✅ **Procédures reproductibles**
+        
+        ✅ **4 résultats affichés** (2 procédures × 2 lambdas)
+        
+        ### 🔍 Avantages
+        
+        **Multi-dimensionnel:**
+        Prend en compte 8 aspects simultanément
+        
+        **Robuste:**
+        4 classifications différentes pour voir la variabilité
+        
+        **Transparent:**
+        Toutes les règles sont visibles
+        
+        **Adaptable:**
+        Profils recalculés sur vraies données
+        
+        ### ⚙️ Calcul de Concordance
+        
+        Pour chaque critère:
+        - Si le produit est meilleur que le profil → 1
+        - Sinon → 0
+        
+        Concordance globale:
+```
+        C = Σ(poids × concordance) 
+            ─────────────────────
+                Σ(poids)
+```
+        
+        Si C ≥ λ → le produit dépasse le profil
+        """)
+    
+    # ========== SUPERNUTRI-SCORE ==========
+    st.markdown("---")
+    st.subheader("3️⃣ SuperNutri-Score (Modèle Innovant)")
+    
+    col1, col2 = st.columns([2, 1])
+    
+    with col1:
+        st.markdown("""
+        ### 🎯 Principe
+        Le **SuperNutri-Score** combine 3 dimensions pour une évaluation holistique:
+        1. **Nutrition** (via ELECTRE TRI)
+        2. **Environnement** (via Green-Score / Eco-Score)
+        3. **Agriculture** (Bio ou non)
+        
+        ### 🧮 Algorithme Transparent
+        
+        **Étape 1: Base Nutritionnelle**
+        - Départ = ELECTRE TRI Pessimiste λ=0.6
+        - A' → A, B' → B, C' → C, D' → D, E' → E
+        
+        **Étape 2: Bonus Green-Score A**
+```python
+        if green_score == 'A' and grade > A:
+            grade += 1  # Amélioration d'un niveau
+```
+        *Pourquoi?* Récompense l'excellence environnementale
+        
+        **Étape 3: Malus Green-Score D/E**
+```python
+        if green_score in ['D', 'E'] and grade < E:
+            grade -= 1  # Dégradation d'un niveau
+```
+        *Pourquoi?* Pénalise l'impact environnemental élevé
+        
+        **Étape 4: Bonus Bio**
+```python
+        if is_bio and green_score != 'E' and grade > A:
+            grade += 1  # Amélioration d'un niveau
+```
+        *Pourquoi?* Valorise l'agriculture biologique (si pas de Green-Score E)
+        
+        **Étape 5: Limitation Green-Score E**
+```python
+        if green_score == 'E':
+            grade = max(grade, C)  # Plafond à C
+```
+        *Pourquoi?* Un produit très polluant ne peut pas avoir A ou B
+        
+        ### 🎨 Grade Final
+        Le grade final (A à E) reflète l'équilibre entre:
+        - Qualité nutritionnelle
+        - Impact environnemental
+        - Mode de production
+        
+        ### 📊 Exemple de Calcul
+        
+        **Produit: Pain bio avec Green-Score B**
+        1. ELECTRE Pess. 0.6 → B' → **Grade B**
+        2. Green-Score = B → Pas de bonus A
+        3. Green-Score = B → Pas de malus D/E
+        4. Bio = Oui + Green ≠ E → **Bonus! B → A**
+        5. Green-Score ≠ E → Pas de limitation
+        
+        **SuperNutri-Score Final: A** ✅
+        
+        **Produit: Yaourt avec Green-Score E**
+        1. ELECTRE Pess. 0.6 → A' → **Grade A**
+        2. Green-Score = E → Pas de bonus A
+        3. Green-Score = E → **Malus! A → B**
+        4. Bio = Non → Pas de bonus
+        5. Green-Score = E → **Limitation! Max = C**
+        
+        **SuperNutri-Score Final: C** ⚠️
+        """)
+    
+    with col2:
+        st.markdown("""
+        ### 📌 Transparence
+        
+        ✅ **5 règles simples et fixes**
+        
+        ✅ **Aucun paramètre caché**
+        
+        ✅ **Logique explicite et reproductible**
+        
+        ✅ **Chaque règle est justifiée**
+        
+        ### 🌟 Innovation
+        
+        **Holistique:**
+        Première fois que nutrition, environnement et bio sont combinés
+        
+        **Équilibré:**
+        Chaque dimension a un impact limité (±1 grade)
+        
+        **Protecteur:**
+        Limitation pour Green-Score E
+        
+        **Pédagogique:**
+        Le consommateur voit quelles règles s'appliquent
+        
+        ### 🎯 Objectif
+        
+        Guider vers des choix:
+        - ✅ Nutritionnellement sains
+        - ✅ Écologiquement responsables
+        - ✅ Issus d'agriculture durable
+        
+        ### 📋 Règles Appliquées
+        
+        L'application affiche toujours:
+        - Le grade de base ELECTRE
+        - Les bonus/malus appliqués
+        - Le grade final
+        
+        **100% transparent!**
+        """)
+    
+    # ========== SYNTHÈSE ==========
+    st.markdown("---")
+    st.subheader("📊 Comparaison des 3 Modèles")
+    
+    comparison_df = pd.DataFrame({
+        'Caractéristique': [
+            'Type',
+            'Critères évalués',
+            'Résultats fournis',
+            'Complexité',
+            'Dimensions',
+            'Base scientifique',
+            'Poids des critères',
+            'Calcul',
+            'Grades possibles'
+        ],
+        'Nutri-Score 2025': [
+            'Officiel ANSES',
+            '7 (nutrition uniquement)',
+            '1 grade',
+            'Simple',
+            'Nutrition seule',
+            'Très forte',
+            'Fixes et publics',
+            'Addition/Soustraction',
+            'A, B, C, D, E'
+        ],
+        'ELECTRE TRI': [
+            'Multicritère',
+            '8 (nutrition + additifs)',
+            '4 grades (2λ × 2 procédures)',
+            'Avancée',
+            'Nutrition + Additifs',
+            'Forte (méthode MCDA)',
+            'Fixes: 2-2-2-1-1-1-1-1',
+            'Concordance + Profils',
+            "A', B', C', D', E'"
+        ],
+        'SuperNutri-Score': [
+            'Innovant',
+            '8 nutrition + Eco + Bio',
+            '1 grade',
+            'Modérée',
+            'Nutrition + Environnement',
+            'Combinaison de modèles',
+            'Hérités d\'ELECTRE',
+            'ELECTRE + Règles',
+            'A, B, C, D, E'
+        ]
+    })
+    
+    st.dataframe(comparison_df, use_container_width=True, hide_index=True)
+    
+    st.markdown("""
+    ---
+    ### 🎓 Conclusion: La Transparence au Service de la Décision
+    
+    Les trois modèles présentés illustrent différents niveaux de complexité dans l'aide à la décision:
+    
+    1. **Nutri-Score:** Simplicité et adoption massive (réglementaire)
+    2. **ELECTRE TRI:** Robustesse méthodologique et analyse multicritère
+    3. **SuperNutri-Score:** Innovation et vision holistique (nutrition + environnement)
+    
+    **L'objectif commun:** Permettre au consommateur de faire des choix éclairés en comprenant 
+    **exactement comment** les algorithmes arrivent à leurs conclusions.
+    
+    ✨ **Aucun paramètre caché, aucune "boîte noire" - Transparence totale!**
+    """)
+
+# ============================================================
 # PAGE 1: CALCULATEUR COMPLET (Requis par professeur)
 # ============================================================
-if page == "🧮 Calculateur Complet":
+elif page == "🧮 Calculateur Complet":
     st.header("🧮 Interface Consommateur - Évaluation Complète")
     
     st.info("""
