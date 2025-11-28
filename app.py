@@ -1111,6 +1111,23 @@ elif page == "🧮 Calculator (English)":
     - Weights: Energy=2, Sugars=2, Saturated Fat=2, Sodium=1, Proteins=1, Fiber=1, Fruits/Veg.=1, Additives=1
     - Thresholds λ: 0.6 and 0.7 (both will be calculated)
     """)
+
+    # ========== SECTION 4: SUPERNUTRI-SCORE (Rules) ==========
+    st.markdown("---")
+    st.subheader("🌟 4. SuperNutri-Score (Predefined Rules)")
+    
+    st.info("""
+    **SuperNutri-Score = ELECTRE TRI + Green-Score + Bio**
+    
+    **Calculation rules:**
+    1. **Base:** ELECTRE TRI Pessimistic λ=0.6 (A'→A, B'→B, C'→C, D'→D, E'→E)
+    2. **Green-Score A Bonus:** +1 grade (but not above A)
+    3. **Green-Score D/E Penalty:** -1 grade
+    4. **Bio Bonus:** +1 grade (not applicable if Green-Score = E)
+    5. **Limitation:** If Green-Score = E → maximum grade = C
+    
+    *All rules are fixed and transparent for the consumer.*
+    """)
     
     # ========== CALCULATE BUTTON ==========
     st.markdown("---")
@@ -1379,7 +1396,6 @@ elif page == "🧮 Calculator (English)":
             </div>
             """, unsafe_allow_html=True)
         
-        st.info("**Parameters:** Fixed weights (see above) | Profiles calculated on 329 products")
         
         # ==========================================
         # ALGORITHM 3: SUPERNUTRI-SCORE
